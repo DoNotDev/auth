@@ -1,0 +1,76 @@
+{
+  "name": "@donotdev/auth",
+  "version": "0.1.42",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "description": "Everything you'd need to manage authentication and authorization",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "package.json",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/donotdev/auth.git"
+  },
+  "keywords": [
+    "donotdev",
+    "dndev",
+    "auth",
+    "authentication",
+    "authorization",
+    "firebase",
+    "react",
+    "typescript"
+  ],
+  "scripts": {
+    "dev": "tsc --noEmit --watch --listFiles false --listEmittedFiles false",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "lint": "eslint src/",
+    "type-check": "bunx tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@donotdev/components": "^0.1.42",
+    "@donotdev/core": "^0.1.42",
+    "@donotdev/firebase": "^0.1.42",
+    "@donotdev/supabase": "^0.1.42",
+    "lucide-react": "*",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-hook-form": "*"
+  },
+  "peerDependenciesMeta": {
+    "@donotdev/firebase": {
+      "optional": true
+    },
+    "@donotdev/supabase": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@donotdev/components": "workspace:*",
+    "@donotdev/core": "workspace:*",
+    "@donotdev/firebase": "workspace:*",
+    "@donotdev/supabase": "workspace:*",
+    "@testing-library/react": "^16.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
