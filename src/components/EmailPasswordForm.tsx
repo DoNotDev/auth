@@ -7,7 +7,8 @@
  * password strength indicator, and best practices. Uses framework components exclusively.
  *
  * Security: CAPTCHA-ready, anti-enumeration, client-side rate limiting, breached password check,
- * NIST 800-63B compliant password policy, autoComplete hints for password managers.
+ * NIST 800-63B compliant password policy, autoComplete hints for password managers
+ * (identifier field = `username`, the value password managers pair with the password).
  *
  * @version 0.2.0
  * @since 0.0.1
@@ -546,7 +547,7 @@ function EmailPasswordForm({
                     type="email"
                     label={t('email', 'Email')}
                     placeholder={t('emailPlaceholder', 'Enter your email')}
-                    autoComplete="email webauthn"
+                    autoComplete="username webauthn"
                     disabled={isLoading || forgotPasswordLoading}
                     aria-invalid={!!errors.email}
                     aria-describedby={errors.email ? 'email-error' : undefined}
