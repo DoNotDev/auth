@@ -20,7 +20,7 @@ import { useCallback } from 'react';
 
 import type { AuthPartnerId, AuthResult } from '@donotdev/core';
 
-import { type AuthMethod } from '../constants';
+import type { AuthMethod } from '../constants';
 import { useAuth } from '../useAuth';
 
 interface UseAuthPartnerOptions {

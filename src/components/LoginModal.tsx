@@ -15,7 +15,6 @@ import { useTranslation } from '@donotdev/core';
 
 import { withAuthFallback } from './AuthFallback';
 import MultipleAuthProviders from './MultipleAuthProviders';
-
 import type { LoginModalProps } from '../constants';
 
 // Use MultipleAuthProviders directly - no lazy loading needed for small components

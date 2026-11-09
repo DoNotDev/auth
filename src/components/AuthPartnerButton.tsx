@@ -27,6 +27,8 @@ if (
   document.head.appendChild(style);
 }
 
+import type { ButtonHTMLAttributes, CSSProperties } from 'react';
+
 import {
   cn,
   DISPLAY,
@@ -46,8 +48,6 @@ import {
   type AuthPartnerButtonProps,
 } from '../constants';
 import { useAuth } from '../useAuth';
-
-import type { ButtonHTMLAttributes, CSSProperties } from 'react';
 
 interface AuthPartnerButtonComponentProps extends AuthPartnerButtonProps {
   onSuccess?: (result: any) => void;

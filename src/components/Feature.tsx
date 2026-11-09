@@ -11,12 +11,11 @@
  */
 
 import { useRef, useImperativeHandle, forwardRef } from 'react';
+import type { ReactNode } from 'react';
 
 import { hasTierAccess } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
-
-import type { ReactNode } from 'react';
 
 interface BaseFeatureProps {
   /** UI to render when the feature is not available */

@@ -11,6 +11,7 @@
  */
 
 import { useId } from 'react';
+import type { JSX } from 'react';
 
 import {
   Card,
@@ -23,10 +24,8 @@ import {
 } from '@donotdev/components';
 import { useTranslation, handleError } from '@donotdev/core';
 
-import { useAuth } from '../useAuth';
-
 import type { EmailVerificationProps } from '../constants';
-import type { JSX } from 'react';
+import { useAuth } from '../useAuth';
 
 /**
  * Component for handling email verification

@@ -33,7 +33,9 @@ import {
   hasRoleAccess,
   hasTierAccess,
   getGlobalSingleton,
+  useAuthSessionSnapshot,
 } from '@donotdev/core';
+
 import { useAuthStore } from './AuthStore';
 import { getAuthMethod, type AuthMethod } from './constants';
 
@@ -559,16 +561,33 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
   // ✅ Subscribe to status reactively so components re-render when auth status changes
   const status = useAuthStore((state) => state.status);
 
-  // Always return real status from store (needed for components to show loaders)
+  // Request session snapshot (cookies): who is signed in before the provider is ready.
+  const snapshot = useAuthSessionSnapshot();
+
+  // Session known from the request cookies while the provider initialises: the auth
+  // state is the cookie's (ready, signed in as that user or signed out) on the server,
+  // in the hydration pass and until the provider confirms it. Same states as always.
+  const fromSnapshot = status === FEATURE_STATUS.INITIALIZING && snapshot !== null;
+  const effectiveStatus = fromSnapshot ? FEATURE_STATUS.READY : status;
+
+  // Status (needed for components to show loaders)
   if (key === 'status') {
-    return status as AuthAPI[K];
+    return effectiveStatus as AuthAPI[K];
+  }
+
+  if (fromSnapshot) {
+    if (key === 'user') return snapshot.user as AuthAPI[K];
+    if (key === 'isAuthenticated') return Boolean(snapshot.user) as AuthAPI[K];
+    if (key === 'userRole') {
+      return (snapshot.user?.role || USER_ROLES.GUEST) as AuthAPI[K];
+    }
   }
 
   // Graceful degradation: initializing/degraded/error → return degraded API
   if (
-    status === FEATURE_STATUS.INITIALIZING ||
-    status === FEATURE_STATUS.DEGRADED ||
-    status === FEATURE_STATUS.ERROR
+    effectiveStatus === FEATURE_STATUS.INITIALIZING ||
+    effectiveStatus === FEATURE_STATUS.DEGRADED ||
+    effectiveStatus === FEATURE_STATUS.ERROR
   ) {
     return DEGRADED_AUTH_API[key];
   }

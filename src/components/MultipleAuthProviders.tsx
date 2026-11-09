@@ -11,6 +11,7 @@
  */
 
 import { Suspense, lazy, useId } from 'react';
+import type { ComponentType } from 'react';
 
 import { Alert, ALERT_VARIANT, Stack, Grid } from '@donotdev/components';
 import {
@@ -24,8 +25,6 @@ import { withAuthFallback } from './AuthFallback';
 import AuthPartnerButton from './AuthPartnerButton';
 import { getAuthMethod, type AuthMethod } from '../constants';
 import { useAccountLinking } from '../hooks/useAccountLinking';
-
-import type { ComponentType } from 'react';
 
 // Lazy-load linking UI (module-level to avoid re-creation on each render)
 const LazyAccountLinking = lazy(() => import('./AccountLinking'));

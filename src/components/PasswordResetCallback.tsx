@@ -35,8 +35,8 @@ import {
 } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
-import { useAuth } from '../useAuth';
 import { useAuthStore } from '../AuthStore';
+import { useAuth } from '../useAuth';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 
 type ResetState =

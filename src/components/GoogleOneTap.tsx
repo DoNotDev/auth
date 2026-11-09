@@ -34,12 +34,12 @@
  * @author AMBROISE PARK Consulting
  */
 
+import type { ComponentType } from 'react';
+
 import { Card, Spinner, Stack } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
 import { useGoogleOneTap } from '../hooks/useGoogleOneTap';
-
-import type { ComponentType } from 'react';
 
 /**
  * Component props

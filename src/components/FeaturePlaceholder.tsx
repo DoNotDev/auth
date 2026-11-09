@@ -10,12 +10,12 @@
  * @author AMBROISE PARK Consulting
  */
 
+import type { ReactNode } from 'react';
+
 import { cn } from '@donotdev/components';
 import { hasTierAccess } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
-
-import type { ReactNode } from 'react';
 
 /**
  * Props for the FeaturePlaceholder component

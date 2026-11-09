@@ -13,9 +13,8 @@
 import { Alert, Button, BUTTON_VARIANT, Stack } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
-
 import type { NetworkStatusIndicatorProps } from '../constants';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 /**
  * Component to show network status with reconnection guidance

@@ -35,7 +35,6 @@ import { useTranslation, useAppConfig } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
-
 import type { EmailPasswordFormProps, FormMode } from '../constants';
 
 interface FormData {
@@ -249,7 +248,11 @@ function EmailPasswordForm({
   const sendEmailVerification = useAuth('sendEmailVerification');
   const setRememberMePersistence = useAuth('setRememberMe');
   const isAvailable = useAuth('isAvailable');
+  const status = useAuth('status');
   const loading = useAuth('loading');
+  // Unavailable means the provider failed; while it initialises the form shows,
+  // submit disabled until ready (no "unavailable" flash on every page load).
+  const authFailed = status === 'degraded' || status === 'error';
 
   const [currentMode, setCurrentMode] = useState<FormMode>(mode);
   const isSignUp = currentMode === 'signup';
@@ -409,7 +412,7 @@ function EmailPasswordForm({
     }
   };
 
-  if (!isAvailable) {
+  if (authFailed) {
     return (
       <Stack className={className}>
         <Alert
@@ -417,14 +420,14 @@ function EmailPasswordForm({
           title={t('unavailable.title', 'Authentication Unavailable')}
           description={t(
             'unavailable.description',
-            'Please accept cookies to enable authentication.'
+            'Sign-in is temporarily unavailable. Please try again later.'
           )}
         />
       </Stack>
     );
   }
 
-  const isLoading = loading || isSubmitting;
+  const isLoading = loading || isSubmitting || !isAvailable;
   const hasTosRequirement = isSignUp && (tosEnabled || privacyEnabled);
   const isCaptchaBlocking = captchaToken !== undefined && !captchaToken;
   const isSubmitDisabled =

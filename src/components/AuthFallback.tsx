@@ -9,10 +9,10 @@
  * @author AMBROISE PARK Consulting
  */
 
+import type { ComponentType } from 'react';
+
 import { FeatureFallback, withFeatureFallback } from '@donotdev/components';
 import { isFeatureAvailable, FRAMEWORK_FEATURES } from '@donotdev/core';
-
-import type { ComponentType } from 'react';
 
 interface AuthFallbackProps {
   /** Custom message to display */

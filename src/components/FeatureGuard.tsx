@@ -63,14 +63,14 @@
  * ```
  */
 
+import type { ReactNode, ComponentType } from 'react';
+
 import { Stack } from '@donotdev/components';
 import type { UserRole, SubscriptionTier } from '@donotdev/core';
 import { hasRoleAccess, hasTierAccess } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
 import { AuthFallback } from './AuthFallback';
-
-import type { ReactNode, ComponentType } from 'react';
 
 /**
  * Props for FeatureGuard component

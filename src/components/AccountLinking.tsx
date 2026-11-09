@@ -11,6 +11,7 @@
  */
 
 import { Suspense, lazy } from 'react';
+import type { ComponentType } from 'react';
 
 import {
   Alert,
@@ -29,8 +30,6 @@ import {
 import { EmailLinkForm } from './EmailLinkForm';
 import EmailPasswordForm from './EmailPasswordForm';
 import { useAccountLinking } from '../hooks/useAccountLinking';
-
-import type { ComponentType } from 'react';
 
 export interface AccountLinkingProps {
   className?: string;

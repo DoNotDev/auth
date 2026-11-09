@@ -10,9 +10,9 @@
  * @author AMBROISE PARK Consulting
  */
 
-import { useTranslation } from '@donotdev/core';
-
 import type { ComponentType } from 'react';
+
+import { useTranslation } from '@donotdev/core';
 
 interface RateLimitAlertProps {
   /** Optional identifier for the rate limit context */
