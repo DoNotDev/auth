@@ -63,7 +63,3 @@ export type {
 // and utilities are intentionally not re-exported to maintain a strict, minimal public API.
 // Account deletion functionality is accessed via useAuth('deleteAccount').
 
-// @deprecated FirebaseAuth.fetchSignInMethodsForEmail — enables email enumeration attacks
-// and will be removed in a future version. Use the account linking flow instead.
-// This method is internal (FirebaseAuth class is not exported) and only surfaces via
-// useAuth internals. Do not rely on it.
