@@ -13,8 +13,8 @@
 import {
   createDoNotDevStore,
   FEATURE_STATUS,
+  syncQueryCacheIdentity,
   type AuthPartnerId,
-  type AuthError,
   type AuthState,
   type AuthActions,
   type FeatureStatus,
@@ -31,7 +31,7 @@ const initialState: AuthState = {
   authenticated: false,
   userId: null,
   loading: false,
-  error: null as AuthError,
+  error: null,
   userProfile: null,
   userSubscription: null,
   partnerStates: {} as Record<AuthPartnerId, PartnerState>,
@@ -111,9 +111,11 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
 
     /**
      * Set authenticated state with all user data
-     * Called by AuthService when user signs in
+     * Called by AuthService when user signs in. A different user than the one the
+     * query cache was filled under resets the cache first (syncQueryCacheIdentity).
      */
     setAuthenticated: (user, subscription, profile) => {
+      syncQueryCacheIdentity(user.id);
       set({
         user,
         authenticated: true,
@@ -128,9 +130,11 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
 
     /**
      * Set unauthenticated state
-     * Called by AuthService when user signs out
+     * Called by AuthService when user signs out. Resets the query cache first when it
+     * was filled under a user (syncQueryCacheIdentity).
      */
     setUnauthenticated: () => {
+      syncQueryCacheIdentity(null);
       set({
         user: null,
         authenticated: false,
@@ -156,6 +160,7 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
      * Used when auth operations fail
      */
     setAuthError: (error) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- why: AuthState.error (AuthError) intersects DoNotDevStore.error (string) in core — unsatisfiable without a cast
       set({ error: error as any, loading: false });
     },
 
@@ -179,7 +184,7 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
     },
 
     // Service reference for real data access
-    setAuthService: (authService: any) => set({ authService }),
+    setAuthService: (authService) => set({ authService }),
 
     // Local fallback methods (sync - from cached data)
     getCustomClaimLocal: (claim: string) => {
@@ -204,7 +209,7 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
 
     getCustomClaimsLocal: () => {
       const state = get();
-      const claims: Record<string, any> = {};
+      const claims: Record<string, unknown> = {};
 
       // Only merge actual claims — never spread entire user/profile objects
       if (state.userProfile?.claims) {
@@ -232,8 +237,10 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
 
     // State management
     setLoading: (loading) => set({ loading }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- why: same AuthState.error × DoNotDevStore.error conflict as setAuthError
     setError: (error) => set({ error: error as any }),
     clearError: () => set({ error: null }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- why: initialState.error (AuthError) hits the same AuthState × DoNotDevStore error-type conflict
     reset: () => set(initialState as any),
   }),
 

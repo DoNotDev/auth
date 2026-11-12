@@ -30,6 +30,41 @@ export {
   ReauthDialog,
 } from './components';
 
+// Email auth pieces: compose them for a custom form, every capability included
+export { default as EmailPasswordForm } from './components/EmailPasswordForm';
+export {
+  AUTH_FIELD,
+  useEmailSignIn,
+  useEmailSignUp,
+  usePasswordResetRequest,
+} from './emailAuth/flows';
+export type {
+  AuthFieldErrors,
+  EmailAuthFlow,
+  EmailAuthFlowOptions,
+  EmailAuthMode,
+  EmailSignUpOptions,
+  EmailSignUpOutcome,
+} from './emailAuth/flows';
+export {
+  AuthConfirmPasswordField,
+  AuthConsentField,
+  AuthEmailField,
+  AuthForm,
+  AuthFormAlerts,
+  AuthPasswordField,
+  AuthRememberMeField,
+  AuthSubmitButton,
+} from './emailAuth/fields';
+export type {
+  AuthConsentFieldProps,
+  AuthFormProps,
+  AuthLegalDocument,
+  AuthRememberMeFieldProps,
+  AuthSubmitButtonProps,
+  AuthTextFieldProps,
+} from './emailAuth/fields';
+
 // Public Types - imported from core for consistency
 export type {
   AuthError, // Explicitly import AuthError from core
@@ -49,6 +84,7 @@ export type { AuthMethod } from './constants';
 // Component Prop Types
 export type {
   AuthPartnerButtonProps,
+  EmailPasswordFormProps,
   GoogleOneTapProps,
   LoginModalProps,
 } from './constants';

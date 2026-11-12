@@ -139,7 +139,7 @@ const MultipleAuthProvidersComponent: ComponentType<
 
     if (layout === 'grid') {
       return (
-        <Grid cols={2} gap={spacing as any} className={containerClassName}>
+        <Grid cols={2} gap={spacing} className={containerClassName}>
           {content}
         </Grid>
       );
@@ -149,7 +149,7 @@ const MultipleAuthProvidersComponent: ComponentType<
       <Stack
         direction={layout === 'horizontal' ? 'row' : 'column'}
         wrap={layout === 'horizontal' ? 'wrap' : undefined}
-        gap={spacing as any}
+        gap={spacing}
         align={layout === 'horizontal' ? 'center' : 'stretch'}
         className={containerClassName}
       >

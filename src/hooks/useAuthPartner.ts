@@ -131,9 +131,12 @@ export function useAuthPartner(
         if (result && onSuccess) {
           onSuccess(result);
         }
-      } catch (error: any) {
+      } catch (caught) {
+        // why: auth partner sign-in rejects with Error instances (auth service contract)
+        const error = caught as Error;
         // Set error state
-        setPartnerState(partnerId, 'error', error);
+        // why: AuthAPI.setPartnerState types `error` as string, but the store action takes AuthError (core type drift; runtime passes the Error)
+        setPartnerState(partnerId, 'error', error as unknown as string);
 
         // Call error callback if provided
         if (onError) {

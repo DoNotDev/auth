@@ -97,6 +97,20 @@ export const meta: PageMeta = {
 
 **SEO note:** Auth-guarded routes are still indexed by default. Add `noindex: true` to page meta if the route should be hidden from search engines.
 
+### Next + Supabase cookie session (generated proxy)
+
+With `createBrowserClient` (session in cookies), `dndev` generates `src/proxy.next.ts`. On every page request (not `api`, `_next`, files):
+
+- **No auth cookie** (`sb-<ref>-auth-token`, `hasSupabaseSessionCookie`): signed out, nothing verified or written; `auth` pages redirect to `authRoute`, every other page is served from the cache (see "Cached pages" below).
+- **Auth cookie:** verifies the Supabase session and refreshes an expired one (`refreshSupabaseSession`, `@donotdev/supabase/server`, the @supabase/ssr `getClaims()` pattern), then redirects on the verified result only: `auth` pages send a signed-out visitor to `authRoute` (`?returnTo=`), `signedInRedirect` pages send a signed-in one to their target. Refresh failed / session revoked = signed out; Supabase unreachable = no redirect (the page's guards decide).
+- Signed in or unknown: the page renders per request with the refreshed cookies (internal rewrite to `src/app/dndev-session/…`, `src/app/[lang]/dndev-session/…` with 2+ languages; a direct request to that path is a 404). The refreshed cookies are written on every response.
+
+**Cached pages.** The generated `src/app/(site)` layout renders `ClientLayout` without request data: every page is static, served from the cache and re-rendered at most hourly (`revalidate = 3600`, ISR), one entry per URL (page and language). Guests, crawlers and LLMs get it; so does every visitor of an app whose session the server cannot read (Firebase, localStorage session: no per-request tree, no proxy needed for it). A page that reads the query string (`useSearchParams`, `useLocation().search`) renders that page in the browser; use `useRoutePath()` when only the path is needed. The framework generates the root layout (`src/app/layout.next.tsx`, `src/app/[lang]/layout.next.tsx` with 2+ languages) and the 404 pages; it renders the app's HTML shell `src/app/AppDocument.tsx` (cli `app-next` template) with the page's `<html lang>`. Both trees sit under it, so sign-in and sign-out stay client-side navigations. An `AppDocument` that renders `ClientLayout`, imports `next/headers` or exports `dynamic`, or an app-owned root layout / root `not-found`, fails the build.
+
+Needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLIC_KEY` (the proxy throws without them). Without a proxy, a cookie whose access token expired reads as "unknown": the first paint waits for the provider instead of showing a user the browser may no longer have.
+
+**Query cache follows the identity.** When the signed-in user changes (sign-in, sign-out, other user, or the provider settling on another user than the server snapshot), every cached query is reset before the new identity renders (`syncQueryCacheIdentity`, called by the auth store). The provider confirming the server's user keeps the hydrated cache.
+
 ---
 
 ## Components

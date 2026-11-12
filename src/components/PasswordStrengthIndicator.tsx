@@ -65,13 +65,18 @@ function calculatePasswordStrength(password: string): PasswordStrength {
 function getPasswordRequirements(
   password: string,
   minLength: number,
-  t: (key: string, defaultValue?: string) => string
+  t: (
+    key: string,
+    defaultValue?: string,
+    values?: Record<string, unknown>
+  ) => string
 ): PasswordRequirement[] {
   return [
     {
       label: t(
         'passwordRequirement.length',
-        `At least ${minLength} characters`
+        `At least ${minLength} characters`,
+        { count: minLength }
       ),
       met: password.length >= minLength,
     },
@@ -139,9 +144,11 @@ export function PasswordStrengthIndicator({
   );
 
   const requirements = useMemo(() => {
-    const translate = (key: string, defaultValue?: string) => {
-      return t(key, defaultValue || '');
-    };
+    const translate = (
+      key: string,
+      defaultValue?: string,
+      values?: Record<string, unknown>
+    ) => t(key, { defaultValue: defaultValue || '', ...values });
     return getPasswordRequirements(password, minLength, translate);
   }, [password, minLength, t]);
 

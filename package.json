@@ -1,6 +1,6 @@
 {
   "name": "@donotdev/auth",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": false,
   "type": "module",
   "license": "MIT",
@@ -43,10 +43,10 @@
     "type-check": "bunx tsc --noEmit"
   },
   "peerDependencies": {
-    "@donotdev/components": "^0.2.2",
-    "@donotdev/core": "^0.2.2",
-    "@donotdev/firebase": "^0.2.2",
-    "@donotdev/supabase": "^0.2.0",
+    "@donotdev/components": "^0.2.3",
+    "@donotdev/core": "^0.2.3",
+    "@donotdev/firebase": "^0.2.3",
+    "@donotdev/supabase": "^0.2.3",
     "lucide-react": "*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

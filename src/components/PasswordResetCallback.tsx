@@ -36,6 +36,7 @@ import {
 import { useTranslation } from '@donotdev/core';
 
 import { useAuthStore } from '../AuthStore';
+import { isBreachedPassword } from '../emailAuth/rules';
 import { useAuth } from '../useAuth';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 
@@ -109,37 +110,6 @@ function detectResetFromUrl(): DetectedReset {
   }
 
   return { type: null };
-}
-
-// =============================================================================
-// Breached password check (NIST 800-63B / HaveIBeenPwned k-anonymity)
-// =============================================================================
-
-async function checkBreachedPassword(password: string): Promise<boolean> {
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-      .toUpperCase();
-    const prefix = hashHex.slice(0, 5);
-    const suffix = hashHex.slice(5);
-    const response = await fetch(
-      `https://api.pwnedpasswords.com/range/${prefix}`,
-      { headers: { 'Add-Padding': 'true' }, credentials: 'omit' }
-    );
-    if (!response.ok) return false;
-    const text = await response.text();
-    return text.split('\n').some((line) => {
-      const [hash] = line.split(':');
-      return hash?.trim() === suffix;
-    });
-  } catch {
-    return false;
-  }
 }
 
 // =============================================================================
@@ -386,10 +356,10 @@ export function PasswordResetCallback() {
                 required: t('passwordRequired', 'Password is required'),
                 minLength: {
                   value: 8,
-                  message: t(
-                    'passwordMinLength',
-                    'Password must be at least 8 characters'
-                  ),
+                  message: t('passwordMinLength', {
+                    defaultValue: 'Password must be at least 8 characters',
+                    count: 8,
+                  }),
                 },
                 validate: {
                   uppercase: (v) =>
@@ -410,7 +380,7 @@ export function PasswordResetCallback() {
                     t('passwordRequirement.special', 'One special character'),
                   breached: async (v) => {
                     if (!v || v.length < 8) return true;
-                    const isBreached = await checkBreachedPassword(v);
+                    const isBreached = await isBreachedPassword(v);
                     return (
                       !isBreached ||
                       t(

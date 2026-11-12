@@ -39,6 +39,7 @@ import {
   useTranslation,
   useScriptLoader,
 } from '@donotdev/core';
+import type { AuthAPI } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
 import { useFedCM } from './useFedCM';
@@ -188,7 +189,7 @@ interface UseGoogleOneTapReturn {
   error: Error | null;
 
   /** Current authenticated user */
-  user: any;
+  user: AuthAPI['user'];
 
   /** Whether dark mode is active */
   isDark: boolean;

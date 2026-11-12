@@ -11,7 +11,7 @@
  * @author AMBROISE PARK Consulting
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 
 import type {
   AuthPartnerId,
@@ -22,6 +22,8 @@ import type {
   CanAPI,
 } from '@donotdev/core';
 import {
+  DoNotDevError,
+  ERROR_CODES,
   DEGRADED_AUTH_API,
   FEATURE_STATUS,
   handleError,
@@ -44,10 +46,13 @@ const _a: {
   instance: AuthProvider | null;
   initializing: boolean;
   errorNotified: boolean;
+  /** The one provider auth listener. App-lifetime: never owned by a component. */
+  unsubscribe: (() => void) | null;
 } = getGlobalSingleton('auth-provider', () => ({
   instance: null,
   initializing: false,
   errorNotified: false,
+  unsubscribe: null,
 }));
 
 /**
@@ -60,9 +65,8 @@ function createCanAPI(): CanAPI {
     // Admin+ bypasses all permission checks (uses role hierarchy)
     if (hasRoleAccess(state.user?.role, USER_ROLES.ADMIN)) return true;
     // Check permissions array in userProfile
-    const permissions = (state.userProfile as any)?.permissions as
-      | string[]
-      | undefined;
+    // why: UserProfile is open-ended (`[key: string]: unknown`); `permissions` is a string[] by convention
+    const permissions = state.userProfile?.permissions as string[] | undefined;
     if (!permissions) return false;
     return permissions.includes(permission);
   };
@@ -113,7 +117,7 @@ function createCanAPI(): CanAPI {
     delete: (resource: string) => hasPermission(`${resource}:delete`),
     create: (resource: string) => hasPermission(`${resource}:create`),
     has: (permission: string) => hasPermission(permission),
-    perform: (action: string, context?: Record<string, any>) => {
+    perform: (action: string, context?: Record<string, unknown>) => {
       const state = useAuthStore.getState();
       // Admin+ bypasses all checks (uses role hierarchy)
       if (hasRoleAccess(state.user?.role, USER_ROLES.ADMIN)) return true;
@@ -121,8 +125,9 @@ function createCanAPI(): CanAPI {
       if (!hasPermission(action)) return false;
       // If context provided, check against userProfile capabilities
       if (context) {
-        const capabilities = (state.userProfile as any)?.capabilities as
-          | Record<string, any>
+        // why: UserProfile is open-ended; `capabilities` maps action → numeric limits by convention
+        const capabilities = state.userProfile?.capabilities as
+          | Record<string, Record<string, unknown>>
           | undefined;
         if (capabilities?.[action]) {
           const limit = capabilities[action];
@@ -139,10 +144,37 @@ function createCanAPI(): CanAPI {
   };
 }
 
-// Safe at module level: createCanAPI() only creates closures — getState() is called
-// at invocation time (inside navigate/view/edit/etc.), not at factory time.
-// Zustand stores self-initialize and are available in any JS runtime (SSR/edge included).
-const stableCan = createCanAPI();
+/**
+ * The `can` API for the current auth state. Its methods read the store at call time;
+ * the object itself is rebuilt whenever the state it reads (user, profile,
+ * subscription) changes, so `useAuth('can')` re-renders its component on sign-in,
+ * sign-out and role/tier changes, and stays referentially stable otherwise
+ * (a zustand selector must return the same value for the same state).
+ */
+let canCache: {
+  user: unknown;
+  userProfile: unknown;
+  userSubscription: unknown;
+  api: CanAPI;
+} | null = null;
+
+function canFor(state: ReturnType<typeof useAuthStore.getState>): CanAPI {
+  if (
+    canCache &&
+    canCache.user === state.user &&
+    canCache.userProfile === state.userProfile &&
+    canCache.userSubscription === state.userSubscription
+  ) {
+    return canCache.api;
+  }
+  canCache = {
+    user: state.user,
+    userProfile: state.userProfile,
+    userSubscription: state.userSubscription,
+    api: createCanAPI(),
+  };
+  return canCache.api;
+}
 
 /**
  * Auth API type - complete interface for useAuth
@@ -168,8 +200,11 @@ const stableCan = createCanAPI();
  * Note: AuthAPI is imported from @donotdev/core for type consistency across the framework.
  */
 
+/** AuthAPI keys read verbatim from the Zustand store. */
+type AuthStoreKey = keyof AuthAPI & keyof ReturnType<typeof useAuthStore.getState>;
+
 // Store keys (state that comes from Zustand store)
-const STORE_KEYS: Set<keyof AuthAPI> = new Set([
+const STORE_KEYS: Set<keyof AuthAPI> = new Set<AuthStoreKey>([
   'user',
   'loading',
   'error',
@@ -182,6 +217,10 @@ const STORE_KEYS: Set<keyof AuthAPI> = new Set([
   'getPartnerState',
   'setPartnerState',
 ]);
+
+function isStoreKey(key: keyof AuthAPI): key is AuthStoreKey {
+  return STORE_KEYS.has(key);
+}
 
 /**
  * React hook for authentication with property-based access
@@ -242,8 +281,6 @@ const STORE_KEYS: Set<keyof AuthAPI> = new Set([
  */
 export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
   // ✅ ALL HOOKS MUST BE CALLED UNCONDITIONALLY (Rules of Hooks)
-  const authUnsubRef = useRef<(() => void) | null>(null);
-
   // ✅ Initialize auth when conditions are met (with race condition guard)
   useEffect(() => {
     if (!isClient()) return;
@@ -283,8 +320,12 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
 
         // onAuthStateChanged triggers handleAuthStateChange in provider
         // which calls store.setAuthenticated/setUnauthenticated → sets status to READY.
-        // Capture unsubscribe and clear on cleanup to avoid listener leak on unmount/remount.
-        authUnsubRef.current = _a.instance.onAuthStateChanged(() => {});
+        // One listener for the app's lifetime, held by the singleton: tying it to the
+        // component that happened to initialise auth dropped it when that component
+        // unmounted, and every later sign-in/sign-out never reached the store.
+        if (!_a.unsubscribe) {
+          _a.unsubscribe = _a.instance.onAuthStateChanged(() => {});
+        }
 
         _a.errorNotified = false;
       } catch (error) {
@@ -307,8 +348,6 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
 
     initAuth();
     return () => {
-      authUnsubRef.current?.();
-      authUnsubRef.current = null;
       // Reset initialization guard so React strict mode double-mount (or re-mount
       // after unmount) can re-initialize auth correctly.
       _a.initializing = false;
@@ -398,9 +437,9 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     []
   );
 
-  const sendEmailVerification = useCallback(async () => {
+  const sendEmailVerification = useCallback(async (email?: string) => {
     if (!isClient() || !_a.instance) return;
-    return _a.instance.sendEmailVerification();
+    return _a.instance.sendEmailVerification(email);
   }, []);
 
   const sendSignInLinkToEmail = useCallback(
@@ -487,10 +526,26 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     return _a.instance.deleteAccount(password);
   }, []);
 
-  const setRememberMe = useCallback(async (remember: boolean) => {
-    if (!isClient() || !_a.instance?.setRememberMe) return;
-    return _a.instance.setRememberMe(remember);
+  const canRememberMe = useCallback((): boolean => {
+    const instance = _a.instance;
+    if (!isClient() || !instance?.setRememberMe) return false;
+    return instance.supportsRememberMe ? instance.supportsRememberMe() : true;
   }, []);
+
+  // Fails loud: a "remember me" the provider cannot honour must never be silently ignored.
+  const setRememberMe = useCallback(
+    async (remember: boolean) => {
+      if (!canRememberMe() || !_a.instance?.setRememberMe) {
+        throw new DoNotDevError(
+          'Remember me is not supported by this auth provider',
+          ERROR_CODES.UNIMPLEMENTED,
+          { source: 'auth' }
+        );
+      }
+      return _a.instance.setRememberMe(remember);
+    },
+    [canRememberMe]
+  );
 
   // ==========================================================================
   // Methods Object - Each method is stable via useCallback
@@ -519,6 +574,7 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     reauthenticateWithProvider,
     deleteAccount,
     setRememberMe,
+    canRememberMe,
     hasRole,
     hasTier,
     hasFeature,
@@ -540,7 +596,7 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
 
   // ✅ ALWAYS subscribe to store unconditionally - condition is INSIDE selector
   const storeValue = useAuthStore((state) =>
-    STORE_KEYS.has(key) ? (state as any)[key] : null
+    isStoreKey(key) ? state[key] : null
   );
 
   // ✅ ALWAYS subscribe for computed values unconditionally - condition is INSIDE selector
@@ -550,7 +606,7 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     if (key === 'userRole') return state.user?.role || USER_ROLES.GUEST;
     if (key === 'userTier')
       return state.userSubscription?.tier || SUBSCRIPTION_TIERS.FREE;
-    if (key === 'can') return stableCan;
+    if (key === 'can') return canFor(state);
     return null;
   });
 

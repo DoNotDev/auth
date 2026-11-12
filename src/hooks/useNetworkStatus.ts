@@ -69,7 +69,10 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
     // Check connection type
     const checkConnectionType = () => {
       if ('connection' in navigator) {
-        const connection = (navigator as any).connection;
+        // why: Network Information API is not in lib.dom (Chromium-only)
+        const connection = (
+          navigator as Navigator & { connection: { effectiveType?: string } }
+        ).connection;
         setConnectionType(connection.effectiveType || 'unknown');
       }
     };

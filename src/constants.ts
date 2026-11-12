@@ -74,6 +74,7 @@ export interface BaseComponentProps {
  */
 export interface AuthCallbackProps {
   /** Callback when authentication succeeds */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- why: public callback; giving result a concrete type is a breaking change for consumers (any-audit)
   onSuccess?: (result: any) => void;
   /** Callback when authentication fails */
   onError?: (error: Error) => void;

@@ -72,7 +72,7 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
       await updatePassword(data.password);
       setShowDialog(false);
       reset();
-    } catch (err: any) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError('root', {
         message:
