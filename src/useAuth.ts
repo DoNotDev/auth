@@ -11,7 +11,7 @@
  * @author AMBROISE PARK Consulting
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 
 import type {
   AuthPartnerId,
@@ -55,13 +55,15 @@ const _a: {
   unsubscribe: null,
 }));
 
-/**
- * Stable capability-based access control object factory
- * Created once, methods always use current store state
- */
-function createCanAPI(): CanAPI {
+type AccessState = Pick<
+  ReturnType<typeof useAuthStore.getState>,
+  'user' | 'userProfile' | 'userSubscription'
+>;
+
+/** Build capabilities with an explicit state reader: live store or request snapshot. */
+function createCanAPI(readState: () => AccessState): CanAPI {
   const hasPermission = (permission: string): boolean => {
-    const state = useAuthStore.getState();
+    const state = readState();
     // Admin+ bypasses all permission checks (uses role hierarchy)
     if (hasRoleAccess(state.user?.role, USER_ROLES.ADMIN)) return true;
     // Check permissions array in userProfile
@@ -75,7 +77,7 @@ function createCanAPI(): CanAPI {
     // Route-level access control (replaces canAccess)
     // Uses role hierarchy: admin can access user/guest routes, user can access guest routes
     navigate: (authConfig: PageAuth | false): boolean => {
-      const state = useAuthStore.getState();
+      const state = readState();
 
       if (authConfig === false) return true;
 
@@ -95,16 +97,19 @@ function createCanAPI(): CanAPI {
 
       if (
         authConfig.tier &&
-        !hasTierAccess(state.userSubscription?.tier, authConfig.tier)
+        !hasTierAccess(
+          state.userSubscription?.tier ?? SUBSCRIPTION_TIERS.FREE,
+          authConfig.tier
+        )
       ) {
         return false;
       }
 
       if (
         authConfig.validate &&
-        state.userSubscription &&
-        state.user?.role &&
-        !authConfig.validate(state.user.role, state.userSubscription.tier)
+        (!state.userSubscription ||
+          !state.user?.role ||
+          !authConfig.validate(state.user.role, state.userSubscription.tier))
       ) {
         return false;
       }
@@ -118,7 +123,7 @@ function createCanAPI(): CanAPI {
     create: (resource: string) => hasPermission(`${resource}:create`),
     has: (permission: string) => hasPermission(permission),
     perform: (action: string, context?: Record<string, unknown>) => {
-      const state = useAuthStore.getState();
+      const state = readState();
       // Admin+ bypasses all checks (uses role hierarchy)
       if (hasRoleAccess(state.user?.role, USER_ROLES.ADMIN)) return true;
       // Check for action permission
@@ -142,38 +147,6 @@ function createCanAPI(): CanAPI {
       return true;
     },
   };
-}
-
-/**
- * The `can` API for the current auth state. Its methods read the store at call time;
- * the object itself is rebuilt whenever the state it reads (user, profile,
- * subscription) changes, so `useAuth('can')` re-renders its component on sign-in,
- * sign-out and role/tier changes, and stays referentially stable otherwise
- * (a zustand selector must return the same value for the same state).
- */
-let canCache: {
-  user: unknown;
-  userProfile: unknown;
-  userSubscription: unknown;
-  api: CanAPI;
-} | null = null;
-
-function canFor(state: ReturnType<typeof useAuthStore.getState>): CanAPI {
-  if (
-    canCache &&
-    canCache.user === state.user &&
-    canCache.userProfile === state.userProfile &&
-    canCache.userSubscription === state.userSubscription
-  ) {
-    return canCache.api;
-  }
-  canCache = {
-    user: state.user,
-    userProfile: state.userProfile,
-    userSubscription: state.userSubscription,
-    api: createCanAPI(),
-  };
-  return canCache.api;
 }
 
 /**
@@ -228,6 +201,11 @@ function isStoreKey(key: keyof AuthAPI): key is AuthStoreKey {
  * Single entry point for all authentication operations.
  * Lazy loads FirebaseAuth on first call and connects to store.
  * Uses unified FeatureStatus enum for lifecycle management.
+ * During initialization, request snapshots supply display-only identity and access
+ * state without seeding the singleton store. Omitted subscriptions grant no paid
+ * access. Snapshot capabilities are request-local; ready capabilities read the
+ * live store at call time and remain stable until access state changes.
+ * Protected server operations must still authorize against fresh trusted auth.
  *
  * **Property-based access (clean and simple):**
  * ```typescript
@@ -606,7 +584,6 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     if (key === 'userRole') return state.user?.role || USER_ROLES.GUEST;
     if (key === 'userTier')
       return state.userSubscription?.tier || SUBSCRIPTION_TIERS.FREE;
-    if (key === 'can') return canFor(state);
     return null;
   });
 
@@ -626,12 +603,52 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
   const fromSnapshot = status === FEATURE_STATUS.INITIALIZING && snapshot !== null;
   const effectiveStatus = fromSnapshot ? FEATURE_STATUS.READY : status;
 
+  // Select references rather than a new object: unrelated store updates must not
+  // rebuild capabilities. The cache belongs to this hook, never to another request.
+  const canUser = useAuthStore((state) =>
+    key === 'can' ? state.user : null
+  );
+  const canProfile = useAuthStore((state) =>
+    key === 'can' ? state.userProfile : null
+  );
+  const canSubscription = useAuthStore((state) =>
+    key === 'can' ? state.userSubscription : null
+  );
+  const liveCan = useMemo(
+    () => createCanAPI(useAuthStore.getState),
+    [canUser, canProfile, canSubscription]
+  );
+  const snapshotState = useMemo<AccessState | null>(
+    () => snapshot === null ? null : {
+      user: snapshot.user,
+      userProfile: snapshot.user
+        ? { userId: snapshot.user.id, role: snapshot.user.role }
+        : null,
+      userSubscription: snapshot.user ? snapshot.userSubscription ?? null : null,
+    },
+    [snapshot]
+  );
+  const snapshotCan = useMemo(
+    () => snapshotState === null ? null : createCanAPI(() => snapshotState),
+    [snapshotState]
+  );
+
   // Status (needed for components to show loaders)
   if (key === 'status') {
     return effectiveStatus as AuthAPI[K];
   }
 
   if (fromSnapshot) {
+    if (key === 'userSubscription') {
+      return snapshotState?.userSubscription as AuthAPI[K];
+    }
+    if (key === 'userProfile') return snapshotState?.userProfile as AuthAPI[K];
+    if (key === 'userTier') {
+      return (
+        snapshotState?.userSubscription?.tier ?? SUBSCRIPTION_TIERS.FREE
+      ) as AuthAPI[K];
+    }
+    if (key === 'can') return snapshotCan as AuthAPI[K];
     if (key === 'user') return snapshot.user as AuthAPI[K];
     if (key === 'isAuthenticated') return Boolean(snapshot.user) as AuthAPI[K];
     if (key === 'userRole') {
@@ -662,6 +679,8 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
   if (key in methods) {
     return methods[key as keyof typeof methods] as AuthAPI[K];
   }
+
+  if (key === 'can') return liveCan as AuthAPI[K];
 
   // Return computed value
   if (computedKeys.has(key)) {

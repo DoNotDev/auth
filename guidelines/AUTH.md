@@ -101,15 +101,16 @@ export const meta: PageMeta = {
 
 With `createBrowserClient` (session in cookies), `dndev` generates `src/proxy.next.ts`. On every page request (not `api`, `_next`, files):
 
-- **No auth cookie** (`sb-<ref>-auth-token`, `hasSupabaseSessionCookie`): signed out, nothing verified or written; `auth` pages redirect to `authRoute`, every other page is served from the cache (see "Cached pages" below).
-- **Auth cookie:** verifies the Supabase session and refreshes an expired one (`refreshSupabaseSession`, `@donotdev/supabase/server`, the @supabase/ssr `getClaims()` pattern), then redirects on the verified result only: `auth` pages send a signed-out visitor to `authRoute` (`?returnTo=`), `signedInRedirect` pages send a signed-in one to their target. Refresh failed / session revoked = signed out; Supabase unreachable = no redirect (the page's guards decide).
-- Signed in or unknown: the page renders per request with the refreshed cookies (internal rewrite to `src/app/dndev-session/…`, `src/app/[lang]/dndev-session/…` with 2+ languages; a direct request to that path is a 404). The refreshed cookies are written on every response.
+- **No auth cookie** (`sb-<ref>-auth-token`, `hasSupabaseSessionCookie`): signed out, nothing verified or written; `auth` pages redirect to `authRoute` (no `authRoute`: rendered per request, the page's `AuthGuard` decides), every other page is served from the cache (see "Cached pages" below).
+- **Auth cookie:** `refreshSupabaseSession` (`@donotdev/supabase/server`) calls `getUser()` against Auth on each authenticated page request, adding network latency; it refreshes an expired token as needed. Redirects use the verified result only: `auth` pages send a signed-out visitor to `authRoute` (`?returnTo=`), `signedInRedirect` pages send a signed-in one to their target. Auth rejection / refresh failure = signed out. Supabase unreachable = unknown, no redirect.
+- Signed in or unknown: the page renders per request (internal rewrite to `src/app/dndev-session/…`, `src/app/[lang]/dndev-session/…` with 2+ languages; a direct request to that path is a 404).
+- **`auth` pages have no cached copy:** they are generated only in the per-request tree, and every visitor who is not redirected gets them per request. They read the request on the server, query string included (`useSearchParams`), with no `<Suspense>`. Forwarded render cookies bind identity and subscription to the verified user, not the incoming cookie's user object. On outage, unverified auth cookies are removed from the render request, not the browser. Refreshed browser cookies are applied to responses; personal auth must never be globally cached.
 
-**Cached pages.** The generated `src/app/(site)` layout renders `ClientLayout` without request data: every page is static, served from the cache and re-rendered at most hourly (`revalidate = 3600`, ISR), one entry per URL (page and language). Guests, crawlers and LLMs get it; so does every visitor of an app whose session the server cannot read (Firebase, localStorage session: no per-request tree, no proxy needed for it). A page that reads the query string (`useSearchParams`, `useLocation().search`) renders that page in the browser; use `useRoutePath()` when only the path is needed. The framework generates the root layout (`src/app/layout.next.tsx`, `src/app/[lang]/layout.next.tsx` with 2+ languages) and the 404 pages; it renders the app's HTML shell `src/app/AppDocument.tsx` (cli `app-next` template) with the page's `<html lang>`. Both trees sit under it, so sign-in and sign-out stay client-side navigations. An `AppDocument` that renders `ClientLayout`, imports `next/headers` or exports `dynamic`, or an app-owned root layout / root `not-found`, fails the build.
+**Cached pages.** The generated `src/app/(site)` layout renders `ClientLayout` without request data: every page is static, served from the cache and re-rendered at most hourly (`revalidate = 3600`, ISR; `appConfig.revalidate` sets another lifetime in seconds, or `false` to keep pages until the next deploy), one entry per URL (page and language). Guests, crawlers and LLMs get it; so does every visitor of an app whose session the server cannot read (Firebase, localStorage session: no per-request tree, no proxy needed for it). The layout puts no Suspense boundary around the page, and the framework never adds one at layout level: it would show every static page only after the first paint (Lighthouse). A cached page that reads the query string (`useSearchParams`, `useLocation().search`) wraps that read in its own `<Suspense>`, which renders that part in the browser, and `next build` fails without one; use `useRoutePath()` when only the path is needed. `auth` pages of a cookie-session app are per request (see above) and need none. The framework generates the root layout (`src/app/layout.next.tsx`, `src/app/[lang]/layout.next.tsx` with 2+ languages) and the 404 pages; it renders the app's HTML shell `src/app/AppDocument.tsx` (cli `app-next` template) with the page's `<html lang>`. Both trees sit under it, so sign-in and sign-out stay client-side navigations. An `AppDocument` that renders `ClientLayout`, imports `next/headers` or exports `dynamic`, or an app-owned root layout / root `not-found`, fails the build.
 
 Needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLIC_KEY` (the proxy throws without them). Without a proxy, a cookie whose access token expired reads as "unknown": the first paint waits for the provider instead of showing a user the browser may no longer have.
 
-**Query cache follows the identity.** When the signed-in user changes (sign-in, sign-out, other user, or the provider settling on another user than the server snapshot), every cached query is reset before the new identity renders (`syncQueryCacheIdentity`, called by the auth store). The provider confirming the server's user keeps the hydrated cache.
+**Query cache follows the identity.** When the signed-in user changes (sign-in, sign-out, other user, or the provider settling on another user than the server snapshot), every cached query is reset before the new identity renders (`syncQueryCacheIdentity`, called by the auth store). The provider confirming the server's user keeps the hydrated cache. Next.js: the client router cache follows too. `NextJsStoresInitializer` calls `router.refresh()` on every such change (`onQueryCacheIdentityChange`, synchronously, before the caller's next `navigate`), so payloads and proxy redirects cached under the previous session (e.g. `/` → its `signedInRedirect` target) are never replayed after sign-out. Platform caches outside React Query subscribe the same way; auth itself stays router-agnostic.
 
 ---
 
@@ -200,7 +201,7 @@ await auth.setCustomUserClaims(userId, {
 });
 ```
 
-**Supabase** - Set user metadata:
+**Supabase** - Set trusted app metadata (never editable `user_metadata`):
 ```sql
 -- In Supabase Dashboard > SQL Editor
 UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}' WHERE id = '<user-id>';
@@ -211,9 +212,70 @@ UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"
 dndev make-admin <userId>
 ```
 
-**Note:** User must sign out and sign in again for role changes to take effect.
+**Session sync:** After a server-side role or subscription change, explicitly refresh the affected browser's configured auth provider (see below), or sign out and in. A setter cannot remotely force another user's browser to refresh.
 
 **Used by:** CRUD access control, protected routes, field visibility filtering.
+
+## Access Subscriptions (Auth-Owned)
+
+Auth owns `SubscriptionClaimsSchema`, `SubscriptionClaims`, `UserSubscription`, statuses and defaults in core. Billing is a separate producer of access updates, not a prerequisite for access. Persist only the canonical nested `customClaims.subscription` (Supabase: `app_metadata.subscription`); do not mirror a flat `tier`.
+
+Required fields: `tier: string`, `status: string`, `subscriptionEnd: ISO timestamp | null`, `updatedAt: ISO timestamp`. Optional: `features: string[]`, `isDefault: boolean`. `subscriptionId` / `customerId` (optional, nullable) and `cancelAtPeriodEnd` (optional boolean) are deprecated billing compatibility projections, not requirements for a generic grant. `createDefaultSubscriptionClaims(userId)` retains its deprecated argument for compatibility but leaves payment identifiers null; an auth UID is not a billing customer ID.
+
+### Server grant / revoke (Supabase)
+
+Server-only example; the caller must authenticate and authorize the acting server request for the target `uid` **before** calling this helper. Possessing a server secret is not caller authorization. Never expose the secret or this operation as an unguarded client endpoint.
+
+```typescript
+import * as v from 'valibot';
+import { SubscriptionClaimsSchema } from '@donotdev/core/server';
+import {
+  createServerClient,
+  SupabaseServerAuthAdapter,
+} from '@donotdev/supabase/server';
+
+async function writeAccess(
+  url: string,
+  serverSecret: string,
+  uid: string,
+  tier: 'pro' | 'free',
+): Promise<void> {
+  const auth = new SupabaseServerAuthAdapter(createServerClient(url, serverSecret));
+  await auth.setCustomClaims(uid, {
+    subscription: v.parse(SubscriptionClaimsSchema, {
+      tier,
+      status: 'active',
+      subscriptionEnd: null,
+      updatedAt: new Date().toISOString(),
+    }),
+  });
+}
+```
+
+Grant with `pro`; revoke with a complete `free` object using the same path, without fabricated billing IDs. Supabase merges top-level app metadata, preserving unrelated keys but replacing the supplied subscription object. Omitting `subscription` does not remove it; `{ subscription: null }` explicitly clears its value and resolves to baseline free. Prefer the complete free object for an explicit persisted revocation. Self-service claims setters do not permit subscription writes.
+
+### Browser session sync
+
+After the server write succeeds, in the **affected user's browser**:
+
+```typescript
+import { getProvider } from '@donotdev/core';
+
+const token = await getProvider('auth').refreshToken();
+if (token === null) throw new Error('Auth refresh failed');
+```
+
+`refreshToken()` is an existing provider method, not a `useAuth` selector. On success it applies canonical user/subscription state before resolving; `useAuth('userSubscription')`, `useAuth('userTier')`, guards and capabilities then observe it. Other users' browsers require their own refresh; the server setter does not push session updates.
+
+### Access semantics and trust
+
+- `resolveUserSubscription(userId, claims)` takes the nested subscription object, not the claims envelope. Absent/null means deterministic free baseline; malformed present claims fail rather than retain earlier access. No flat-tier migration fallback.
+- Tier guards and provider `hasTier()` compare the raw declared tier hierarchically (`free < pro < ai` by default), **without checking status or expiry**. Unknown/unconfigured tiers deny access. `isActive` means only `status === 'active'`; `subscriptionEnd` is not automatically enforced. Changing status alone does not revoke tier access: lower/remove the tier.
+- Existing status strings, including legacy/custom statuses, remain accepted. This introduces no trial, grace or expiry policy.
+- Supabase authorization claims/roles come only from `app_metadata`; `user_metadata` is editable profile data (name/avatar), never authorization. A signed-in user with no explicit application role has baseline role `user`.
+- SSR `AuthSessionSnapshot.userSubscription` is display-only request context (optional for older providers). During initialization, `useAuth` reads request-local identity, subscription and capabilities; never write a request identity into the singleton auth store. Protected server actions must reauthorize using fresh trusted auth.
+- Proxy `getUser()` supplies current trusted metadata for page rendering; it does **not** promise JWT/session revocation everywhere. Direct RLS using `auth.jwt()` may still see old claims until token refresh/expiry. Immediate revocation requires authoritative server/database policy at the protected operation, not a guard or client refresh alone.
+- Claim updates are not a transactional grant/revoke API. Firebase merges a read snapshot before replacing claims; Supabase accepts key patches but provides no compare-and-set contract. Coordinate concurrent authorization writers per user when ordering matters. A browser refresh cannot repair a server-side lost update.
 
 ### Redirect URLs (Supabase only)
 
