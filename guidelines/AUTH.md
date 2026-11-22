@@ -180,6 +180,72 @@ const signOut = useAuth('signOut');
 
 **Pre-configured:** `AuthHeader` in layout (null if auth disabled), OAuth callbacks, session management, account linking.
 
+### Admin: list users
+
+`useAuthUsers()` lists every auth account for admin pages (emails, confirmation, sign-in dates), read from the auth backend itself: no user table, no copy.
+
+```tsx
+import { useAuthUsers } from '@donotdev/auth';
+
+const { users, loading, error, reload } = useAuthUsers();
+// users: AuthUserSummary[] = { id, email, emailConfirmedAt, createdAt, lastSignInAt, displayName }
+```
+
+Loads once auth is ready, through `useAuth('listUsers')` (throws `UNIMPLEMENTED` on a provider without it). Deploy the admin-only server function; non-admin callers are refused, surfaced as `error`:
+
+| Backend | Deploy |
+|---------|--------|
+| Supabase | `supabase/functions/list-auth-users/index.ts`: `import { createListAuthUsers } from '@donotdev/functions/supabase'; Deno.serve(createListAuthUsers());` |
+| Firebase | `functions/src/index.ts`: `import { listAuthUsers as frameworkListAuthUsers } from '@donotdev/functions/firebase'; export const listAuthUsers = frameworkListAuthUsers();` |
+
+Firebase records no confirmation time: a verified Firebase address carries the account creation time as `emailConfirmedAt`.
+
+---
+
+## Email Sign-Up Confirmation
+
+`useEmailSignUp` (the flow behind `EmailPasswordForm` and the `Auth*Field` pieces) ends a sign-up that needs confirmation in one of two ways (`confirmation` option). `useEmailSignIn` takes the same option for an address that was never confirmed:
+
+| `confirmation` | Sign-up | Sign-in of an unconfirmed address | Provider |
+|---|---|---|---|
+| `'toast'` (default) | Toast "Check your email" with Resend; the link in the email confirms | Form error with "Resend verification email" | All |
+| `'code'` | No toast. `onSuccess({ awaitingConfirmation: true, email })`: show the code step | A fresh code is sent (`sendEmailVerification`), then `onCodeSent(email)`: show the code step. A rate-limited resend (a code went out moments ago) still calls `onCodeSent`: that code stays valid; other resend errors are the form error | Implements `verifyEmailCode` (Supabase) |
+
+**Whole flow, no app code:** `<EmailPasswordForm confirmation="code" onSuccess={close} />` (sign-up or unconfirmed sign-in → code step → signed in → `onSuccess`; "Change address" goes back to the form).
+
+**Composed (sheet, own fields):**
+
+```tsx
+import { AuthCodeStep, AuthEmailField, AuthForm, AuthFormAlerts, AuthNameField,
+  AuthPasswordField, AuthSubmitButton, useEmailSignUp } from '@donotdev/auth';
+
+const [email, setEmail] = useState<string | null>(null);
+const flow = useEmailSignUp({
+  confirmation: 'code',
+  passwordComposition: false, // optional: length only (default true)
+  onSuccess: (outcome) => (outcome.awaitingConfirmation ? setEmail(outcome.email) : next()),
+});
+
+if (email) return <AuthCodeStep email={email} onSuccess={next} onChangeEmail={() => setEmail(null)} />;
+return (
+  <AuthForm flow={flow}>
+    <AuthNameField info={t('nameHelp')} />
+    <AuthEmailField />
+    <AuthPasswordField />
+    <AuthFormAlerts />
+    <AuthSubmitButton />
+  </AuthForm>
+);
+```
+
+- **`AuthNameField`** (`name="displayName"`, `label`, `info`, `placeholder`, `defaultValue`): the name the user wants in emails. Never required, never validated. Filled: sign-up stores it trimmed as metadata `full_name` (the provider's `displayName`); empty: nothing.
+- **`AuthCodeStep`** (`email`, `length?`, `onSuccess?`, `onChangeEmail?`): "Enter the code sent to {email}", `AuthCodeField`, Resend with countdown, "A new code has been sent." inline after a resend (the code input has focus again), and "Change address" when `onChangeEmail` is given. No toast. Lower level: `useEmailCodeConfirmation(...)` + `<AuthCodeField confirmation={...} />` (`confirmation.resent`, `confirmation.error`).
+- **Anti-enumeration:** a new address, an unconfirmed one and an already confirmed one end on the same screen (`awaitingConfirmation: true`). Supabase sends no email to an already confirmed address, so in code mode the flow sends that address a password-reset email instead (`sendPasswordResetEmail`, fire-and-forget; word the recovery template to also cover "you already have an account"). Its failure is logged, never shown.
+- **Code step:** `length` (default 6) must match the provider (Supabase `mailer_otp_length`); the confirmation email template must contain the code (`{{ .Token }}`). `resendCooldownSeconds` (default 60) counts down from mount; Resend uses `sendEmailVerification(email)`; its outcome is inline (`resent` / `error`), never a toast. Wrong / expired codes and rate limits get translated messages (`errors.invalid_code`, `errors.code_expired`, `errors.rate_limit`). Success signs the user in.
+- **`passwordComposition: false`:** only the minimum length applies (no uppercase / lowercase / digit / special rules, no requirements checklist); the breached-password check stays.
+- **Password reset without toast:** `usePasswordResetRequest({ toast: false })` shows no toast; render the "check your inbox" message from `flow.sent` (true after a request, until the next submit). Default `toast: true` is unchanged.
+- **Same validation in app forms:** `validateEmail(t, email)`, `isEmail`, `newPasswordError(password, minLength, t, composition)`, `DEFAULT_PASSWORD_MIN_LENGTH` and the `AuthT` type are exported: an app form validates exactly like the flows.
+
 ---
 
 ## User Roles

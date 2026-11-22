@@ -15,6 +15,10 @@ export { useAuth } from './useAuth';
 export { useDeleteAccount } from './hooks/useDeleteAccount';
 export type { DeleteAccountState } from './hooks/useDeleteAccount';
 
+// Admin user listing (every auth account, via useAuth('listUsers'))
+export { useAuthUsers } from './hooks/useAuthUsers';
+export type { AuthUsersState } from './hooks/useAuthUsers';
+
 // Non-React Helpers (for Zustand stores, etc.)
 export { getAuthState, subscribeToAuth } from './authHelpers';
 
@@ -34,32 +38,53 @@ export {
 export { default as EmailPasswordForm } from './components/EmailPasswordForm';
 export {
   AUTH_FIELD,
+  useEmailCodeConfirmation,
   useEmailSignIn,
   useEmailSignUp,
   usePasswordResetRequest,
+  validateEmail,
 } from './emailAuth/flows';
+// The flows' validators: an app form validates exactly like the flows
+export {
+  DEFAULT_PASSWORD_MIN_LENGTH,
+  isEmail,
+  newPasswordError,
+} from './emailAuth/rules';
+export type { AuthT } from './emailAuth/rules';
 export type {
   AuthFieldErrors,
   EmailAuthFlow,
+  EmailCodeConfirmation,
+  EmailCodeConfirmationOptions,
+  EmailSignUpConfirmation,
   EmailAuthFlowOptions,
   EmailAuthMode,
+  EmailSignInOptions,
   EmailSignUpOptions,
   EmailSignUpOutcome,
+  PasswordResetRequestFlow,
+  PasswordResetRequestOptions,
 } from './emailAuth/flows';
 export {
+  AuthCodeField,
+  AuthCodeStep,
   AuthConfirmPasswordField,
   AuthConsentField,
   AuthEmailField,
   AuthForm,
   AuthFormAlerts,
+  AuthNameField,
   AuthPasswordField,
   AuthRememberMeField,
   AuthSubmitButton,
 } from './emailAuth/fields';
 export type {
+  AuthCodeFieldProps,
+  AuthCodeStepProps,
   AuthConsentFieldProps,
   AuthFormProps,
   AuthLegalDocument,
+  AuthNameFieldProps,
   AuthRememberMeFieldProps,
   AuthSubmitButtonProps,
   AuthTextFieldProps,
@@ -69,6 +94,7 @@ export type {
 export type {
   AuthError, // Explicitly import AuthError from core
   AuthUser as User, // Rename AuthUser to User for public API simplicity
+  AuthUserSummary,
   UserRole,
   SubscriptionTier,
 } from '@donotdev/core';

@@ -420,6 +420,25 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     return _a.instance.sendEmailVerification(email);
   }, []);
 
+  // Fails loud: a provider without code confirmation must never look like a wrong code.
+  const verifyEmailCode = useCallback(async (email: string, code: string) => {
+    if (!isClient() || !_a.instance) {
+      throw new DoNotDevError(
+        'Authentication is not ready',
+        ERROR_CODES.UNAVAILABLE,
+        { source: 'auth' }
+      );
+    }
+    if (!_a.instance.verifyEmailCode) {
+      throw new DoNotDevError(
+        'Email confirmation by code is not supported by this auth provider',
+        ERROR_CODES.UNIMPLEMENTED,
+        { source: 'auth' }
+      );
+    }
+    return _a.instance.verifyEmailCode(email, code);
+  }, []);
+
   const sendSignInLinkToEmail = useCallback(
     async (
       email: string,
@@ -504,6 +523,25 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     return _a.instance.deleteAccount(password);
   }, []);
 
+  // Fails loud: a provider without user listing must never look like an empty list.
+  const listUsers = useCallback(async () => {
+    if (!isClient() || !_a.instance) {
+      throw new DoNotDevError(
+        'Authentication is not ready',
+        ERROR_CODES.UNAVAILABLE,
+        { source: 'auth' }
+      );
+    }
+    if (!_a.instance.listUsers) {
+      throw new DoNotDevError(
+        'Listing users is not supported by this auth provider',
+        ERROR_CODES.UNIMPLEMENTED,
+        { source: 'auth' }
+      );
+    }
+    return _a.instance.listUsers();
+  }, []);
+
   const canRememberMe = useCallback((): boolean => {
     const instance = _a.instance;
     if (!isClient() || !instance?.setRememberMe) return false;
@@ -542,6 +580,7 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     verifyPasswordResetCode,
     confirmPasswordReset,
     sendEmailVerification,
+    verifyEmailCode,
     getEmailVerificationStatus,
     isEmailVerificationEnabled,
     sendSignInLinkToEmail,
@@ -551,6 +590,7 @@ export function useAuth<K extends keyof AuthAPI>(key: K): AuthAPI[K] {
     reauthenticateWithPassword,
     reauthenticateWithProvider,
     deleteAccount,
+    listUsers,
     setRememberMe,
     canRememberMe,
     hasRole,

@@ -196,7 +196,7 @@ function AccessDenied({
             style={{
               fontWeight: 500,
               fontSize: 'var(--font-size-base)',
-              color: 'var(--destructive-foreground)',
+              color: 'var(--destructive)',
             }}
           >
             Access Denied

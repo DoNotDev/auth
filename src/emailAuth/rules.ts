@@ -4,7 +4,11 @@
  * @fileoverview Email auth rules
  * @description The rules every email/password flow shares, framework form or app form:
  * provider error -> user message, email format, new-password policy, breached-password
- * check (HaveIBeenPwned k-anonymity, NIST 800-63B).
+ * check (HaveIBeenPwned k-anonymity, NIST 800-63B), confirmation-code errors.
+ *
+ * Provider errors are recognised by their structured code first (the error's `code`,
+ * or the provider code `wrapAuthError` keeps in `details.originalCode`), then by
+ * their message.
  *
  * @version 0.1.0
  * @since 0.2.3
@@ -31,6 +35,25 @@ export function isEmail(email: string): boolean {
 const messageOf = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error)).toLowerCase();
 
+/**
+ * Structured codes an error carries: its own `code` (Supabase `AuthError.code`,
+ * Firebase `auth/...`, DoNotDevError code) and `details.originalCode` (the provider
+ * code `wrapAuthError` keeps when the mapping does not know it).
+ */
+function codesOf(error: unknown): string[] {
+  if (typeof error !== 'object' || error === null) return [];
+  const codes: string[] = [];
+  if ('code' in error && typeof error.code === 'string') codes.push(error.code);
+  if ('details' in error && typeof error.details === 'object' && error.details) {
+    const original = (error.details as { originalCode?: unknown }).originalCode;
+    if (typeof original === 'string') codes.push(original);
+  }
+  return codes;
+}
+
+const hasCode = (error: unknown, codes: ReadonlySet<string>): boolean =>
+  codesOf(error).some((code) => codes.has(code));
+
 /** Provider error: too many requests (provider-side rate limit). */
 export function isRateLimitError(error: unknown): boolean {
   const msg = messageOf(error);
@@ -51,8 +74,20 @@ export function isUnconfirmedError(error: unknown): boolean {
   );
 }
 
-/** Provider error: sign-up with an address that already has an account. */
+const ALREADY_REGISTERED_CODES: ReadonlySet<string> = new Set([
+  'user_already_exists', // Supabase, confirmations off
+  'email_exists', // Supabase
+  'auth/email-already-in-use', // Firebase
+  'already-exists', // DoNotDevError (mapped Firebase code)
+]);
+
+/**
+ * Provider error: sign-up with an address that already has an account. Structured
+ * code first, message as the fallback (Supabase with confirmations on reports it as
+ * a fake user, which the provider turns into an "already exists" message).
+ */
 export function isAlreadyRegisteredError(error: unknown): boolean {
+  if (hasCode(error, ALREADY_REGISTERED_CODES)) return true;
   const msg = messageOf(error);
   return (
     msg.includes('already') ||
@@ -115,14 +150,94 @@ export function authErrorMessage(error: unknown, t: AuthT): string {
   return t('errorGeneric', 'Authentication failed. Please try again.');
 }
 
+// =============================================================================
+// Confirmation codes (sign-up code typed by the user)
+// =============================================================================
+
+/** Default number of characters of an emailed confirmation code. */
+export const DEFAULT_CONFIRMATION_CODE_LENGTH = 6;
+
+/** Default seconds before a confirmation code can be sent again. */
+export const DEFAULT_RESEND_COOLDOWN_SECONDS = 60;
+
+const CODE_EXPIRED_CODES: ReadonlySet<string> = new Set([
+  'auth/expired-action-code', // Firebase
+]);
+
+const INVALID_CODE_CODES: ReadonlySet<string> = new Set([
+  // GoTrue answers a wrong AND an expired code with `otp_expired` ("Token has
+  // expired or is invalid"): it cannot tell them apart, so it counts as invalid.
+  'otp_expired',
+  'auth/invalid-action-code', // Firebase
+  'auth/invalid-verification-code', // Firebase
+]);
+
+const RATE_LIMIT_CODES: ReadonlySet<string> = new Set([
+  'over_request_rate_limit', // Supabase
+  'over_email_send_rate_limit', // Supabase (resend: "you can only request this after N seconds")
+  'auth/too-many-requests', // Firebase
+  'rate-limit-exceeded', // DoNotDevError
+]);
+
+/** Provider error: the confirmation code is known to have expired. */
+export function isCodeExpiredError(error: unknown): boolean {
+  if (hasCode(error, CODE_EXPIRED_CODES)) return true;
+  if (hasCode(error, INVALID_CODE_CODES)) return false;
+  const msg = messageOf(error);
+  return msg.includes('expired') && !msg.includes('invalid');
+}
+
+/** Provider error: the confirmation code is wrong (or wrong or expired, see `otp_expired`). */
+export function isInvalidCodeError(error: unknown): boolean {
+  if (hasCode(error, INVALID_CODE_CODES)) return true;
+  const msg = messageOf(error);
+  return (
+    msg.includes('expired or is invalid') ||
+    (msg.includes('invalid') &&
+      (msg.includes('code') || msg.includes('token') || msg.includes('otp')))
+  );
+}
+
+/**
+ * User-facing message for a failed code confirmation or code resend: expired code,
+ * wrong code, rate limit (structured codes included), else `authErrorMessage`.
+ */
+export function codeErrorMessage(error: unknown, t: AuthT): string {
+  if (isCodeExpiredError(error)) {
+    return t('errors.code_expired', 'This code has expired. Request a new code.');
+  }
+  if (isInvalidCodeError(error)) {
+    return t(
+      'errors.invalid_code',
+      'This code is incorrect or has expired. Check the email or request a new code.'
+    );
+  }
+  if (hasCode(error, RATE_LIMIT_CODES)) {
+    return t(
+      'errors.rate_limit',
+      'Too many attempts. Please wait a moment and try again.'
+    );
+  }
+  return authErrorMessage(error, t);
+}
+
 /**
  * First rule a new password breaks, or `null`. Policy: minimum length (8 by default),
- * one uppercase letter, one lowercase letter, one digit, one special character.
+ * then, unless `composition` is `false`, one uppercase letter, one lowercase letter,
+ * one digit, one special character.
+ *
+ * @param password - The new password
+ * @param minLength - Minimum length
+ * @param t - Translate function of the `auth` namespace
+ * @param composition - Apply the character-class rules (default `true`); `false` keeps
+ *   only the empty check and the minimum length (NIST 800-63B: length over composition)
+ * @returns The message of the first broken rule, or `null`
  */
 export function newPasswordError(
   password: string,
   minLength: number,
-  t: AuthT
+  t: AuthT,
+  composition = true
 ): string | null {
   if (password === '') return t('passwordRequired', 'Password is required');
   if (password.length < minLength) {
@@ -132,6 +247,7 @@ export function newPasswordError(
       { count: minLength }
     );
   }
+  if (!composition) return null;
   if (!/[A-Z]/.test(password)) {
     return t(
       'passwordRequirement.uppercase',

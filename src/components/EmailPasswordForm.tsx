@@ -19,6 +19,7 @@ import { Button, BUTTON_VARIANT, Stack, Text } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
 import {
+  AuthCodeStep,
   AuthConfirmPasswordField,
   AuthConsentField,
   AuthEmailField,
@@ -47,7 +48,9 @@ const typedEmail = (event: MouseEvent<HTMLButtonElement>): string => {
  * Email/password form with three views: sign in (remember me, forgot password),
  * sign up (password policy + strength, breached-password check, confirmation,
  * consent) and forgot password. Success calls `onSuccess` at once; what the user must
- * still do arrives as a toast that stays until dismissed.
+ * still do arrives as a toast that stays until dismissed. With `confirmation="code"`,
+ * a sign-up (or a sign-in of an unconfirmed address) shows the code step instead, and
+ * `onSuccess` runs once the code signed the user in.
  *
  * @component
  * @example
@@ -63,18 +66,44 @@ function EmailPasswordForm({
   tos,
   privacy,
   captchaToken,
+  confirmation = 'toast',
 }: EmailPasswordFormProps) {
   const { t } = useTranslation('auth');
   const [view, setView] = useState<EmailAuthMode>(mode);
   const [email, setEmail] = useState('');
+  // Code mode: the address awaiting its code (the form shows the code step)
+  const [codeEmail, setCodeEmail] = useState<string | null>(null);
   const options = {
     onSuccess: () => onSuccess?.(undefined),
     onError,
     captchaToken,
   };
-  const signIn = useEmailSignIn(options);
-  const signUp = useEmailSignUp(options);
+  const signIn = useEmailSignIn({ ...options, confirmation, onCodeSent: setCodeEmail });
+  const signUp = useEmailSignUp({
+    ...options,
+    confirmation,
+    onSuccess: (outcome) => {
+      if (confirmation === 'code' && outcome.awaitingConfirmation) {
+        setCodeEmail(outcome.email);
+      } else onSuccess?.(undefined);
+    },
+  });
   const reset = usePasswordResetRequest(options);
+
+  if (codeEmail !== null) {
+    return (
+      <Stack className={className}>
+        <AuthCodeStep
+          email={codeEmail}
+          onSuccess={() => onSuccess?.(undefined)}
+          onChangeEmail={() => {
+            setEmail(codeEmail);
+            setCodeEmail(null);
+          }}
+        />
+      </Stack>
+    );
+  }
 
   const switchTo =
     (next: EmailAuthMode) => (event: MouseEvent<HTMLButtonElement>) => {
@@ -140,7 +169,7 @@ function EmailPasswordForm({
         <Text as="span" variant="muted">
           |
         </Text>
-        {link(t('actions.sign_up_submit', 'Sign Up'), 'signup')}
+        {link(t('actions.sign_up_submit', 'Create account'), 'signup')}
       </Stack>
     </AuthForm>
   );

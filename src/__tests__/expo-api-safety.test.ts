@@ -121,6 +121,11 @@ describe('Expo API Safety Net — @donotdev/auth', () => {
     expect(typeof mod.useDeleteAccount).toBe('function');
   });
 
+  it('exports useAuthUsers hook', () => {
+    expect(mod.useAuthUsers).toBeDefined();
+    expect(typeof mod.useAuthUsers).toBe('function');
+  });
+
   it('exports getAuthState', () => {
     expect(mod.getAuthState).toBeDefined();
     expect(typeof mod.getAuthState).toBe('function');

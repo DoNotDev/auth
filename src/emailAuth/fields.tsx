@@ -11,12 +11,16 @@
  * Inputs are uncontrolled (read at submit); the only per-keystroke state is the
  * password strength meter of the sign-up password field.
  *
+ * `AuthCodeField` is the exception: the code step, outside any `AuthForm`, driven by
+ * `useEmailCodeConfirmation`; `AuthCodeStep` wraps both with the intro and "Change
+ * address".
+ *
  * @version 0.1.0
  * @since 0.2.3
  * @author AMBROISE PARK Consulting
  */
 
-import { createContext, use, useId, useState } from 'react';
+import { createContext, use, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import {
@@ -29,16 +33,18 @@ import {
   Input,
   Label,
   PasswordInput,
+  PinInput,
   Stack,
   Text,
   cn,
 } from '@donotdev/components';
 import { useAppConfig, useTranslation } from '@donotdev/core';
+import type { AuthUser } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
 import { PasswordStrengthIndicator } from '../components/PasswordStrengthIndicator';
-import { AUTH_FIELD } from './flows';
-import type { EmailAuthFlow } from './flows';
+import { AUTH_FIELD, useEmailCodeConfirmation } from './flows';
+import type { EmailAuthFlow, EmailCodeConfirmation } from './flows';
 
 const FlowContext = createContext<EmailAuthFlow | null>(null);
 
@@ -151,9 +157,56 @@ export function AuthEmailField({
   );
 }
 
+/** Props of {@link AuthNameField}. */
+export interface AuthNameFieldProps extends AuthTextFieldProps {
+  /** Help text: an (i) after the label shows it on hover, focus or tap */
+  info?: string;
+}
+
+/**
+ * Name field (`name="displayName"`, `autocomplete="name"`): the name the user wants in
+ * emails. Optional, never validated: sign-up stores it trimmed as the display name
+ * (metadata `full_name`) when filled, nothing when empty.
+ *
+ * @param props - AuthNameFieldProps
+ * @returns The field
+ */
+export function AuthNameField({
+  label,
+  placeholder,
+  defaultValue,
+  info,
+}: AuthNameFieldProps) {
+  const { t } = useTranslation('auth');
+  const flow = useFlow();
+  return (
+    <Input
+      name={AUTH_FIELD.DISPLAY_NAME}
+      type="text"
+      autoComplete="name"
+      label={label ?? t('name', 'Name')}
+      placeholder={placeholder}
+      defaultValue={defaultValue}
+      info={info}
+      disabled={flow.busy}
+      className="dndev-w-full"
+    />
+  );
+}
+
+/** Translated names of the password show / hide toggle. */
+function usePasswordRevealLabels(): { show: string; hide: string } {
+  const { t } = useTranslation('auth');
+  return {
+    show: t('passwordToggle.show', { defaultValue: 'Show password' }),
+    hide: t('passwordToggle.hide', { defaultValue: 'Hide password' }),
+  };
+}
+
 /**
  * Password field. Sign-in: `current-password`. Sign-up: `new-password` and a strength
- * meter with the policy requirements.
+ * meter, with the policy requirements unless the flow's `passwordComposition` is
+ * `false`.
  *
  * @param props - AuthTextFieldProps
  * @returns The field
@@ -166,12 +219,14 @@ export function AuthPasswordField({ label, placeholder }: AuthTextFieldProps) {
   const [typed, setTyped] = useState('');
   const isNew = flow.mode === 'signup';
   const error = flow.fieldErrors.password;
+  const revealLabels = usePasswordRevealLabels();
   return (
     <Stack gap="tight">
       <PasswordInput
         id={inputId}
         name={AUTH_FIELD.PASSWORD}
         autoComplete={isNew ? 'new-password' : 'current-password'}
+        revealAriaLabel={revealLabels}
         label={label ?? t('password', 'Password')}
         placeholder={
           placeholder ?? t('passwordPlaceholder', 'Enter your password')
@@ -192,7 +247,7 @@ export function AuthPasswordField({ label, placeholder }: AuthTextFieldProps) {
         <PasswordStrengthIndicator
           password={typed}
           minLength={flow.passwordMinLength}
-          showRequirements
+          showRequirements={flow.passwordComposition !== false}
         />
       )}
     </Stack>
@@ -215,12 +270,14 @@ export function AuthConfirmPasswordField({
   const inputId = useId();
   const errorId = useId();
   const error = flow.fieldErrors.confirmPassword;
+  const revealLabels = usePasswordRevealLabels();
   return (
     <Stack gap="tight">
       <PasswordInput
         id={inputId}
         name={AUTH_FIELD.CONFIRM_PASSWORD}
         autoComplete="new-password"
+        revealAriaLabel={revealLabels}
         label={label ?? t('confirmPassword', 'Confirm Password')}
         placeholder={
           placeholder ??
@@ -423,7 +480,7 @@ export function AuthSubmitButton({ children }: AuthSubmitButtonProps) {
   const flow = useFlow();
   const standard =
     flow.mode === 'signup'
-      ? t('actions.sign_up_submit', 'Sign Up')
+      ? t('actions.sign_up_submit', 'Create account')
       : flow.mode === 'reset'
         ? t('forgotPassword.submit', 'Send reset link')
         : t('actions.sign_in_submit', 'Sign In');
@@ -437,5 +494,134 @@ export function AuthSubmitButton({ children }: AuthSubmitButtonProps) {
     >
       {children ?? standard}
     </Button>
+  );
+}
+
+/** Props of {@link AuthCodeField}. */
+export interface AuthCodeFieldProps {
+  /** The code step (`useEmailCodeConfirmation(...)`) */
+  confirmation: EmailCodeConfirmation;
+  /** Label (default: translated "Confirmation code") */
+  label?: string;
+}
+
+/**
+ * The sign-up code step: one box per character (`autocomplete="one-time-code"`,
+ * paste of the whole code), submitted as soon as the last character is typed, the
+ * error under it, "A new code has been sent." under it after a resend (no toast), and
+ * a Resend button with its countdown; after a resend the code input has focus again.
+ * Render it outside the
+ * sign-up `AuthForm` (it is not a form field).
+ *
+ * @param props - AuthCodeFieldProps
+ * @returns The code field
+ */
+export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
+  const { t } = useTranslation('auth');
+  const errorId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { error, resent, resendIn } = confirmation;
+  return (
+    <Stack gap="tight">
+      <PinInput
+        ref={inputRef}
+        value={confirmation.code}
+        onChange={confirmation.setCode}
+        onComplete={(code) => void confirmation.submit(code)}
+        length={confirmation.length}
+        mask={false}
+        autoFocus
+        label={
+          label ?? t('codeConfirmation.label', { defaultValue: 'Confirmation code' })
+        }
+        disabled={confirmation.busy || !confirmation.ready}
+        digitAriaLabel={(index, length) =>
+          t('codeConfirmation.digit', {
+            defaultValue: `Digit ${index} of ${length}`,
+            index,
+            length,
+          })
+        }
+        aria-invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
+      />
+      <FieldError id={errorId} message={error ?? undefined} />
+      {resent && (
+        <Text as="span" level="caption" variant="success" role="status">
+          {t('codeConfirmation.sent', { defaultValue: 'A new code has been sent.' })}
+        </Text>
+      )}
+      <Button
+        type="button"
+        variant={BUTTON_VARIANT.LINK}
+        loading={confirmation.resending}
+        disabled={resendIn > 0 || !confirmation.ready}
+        // The click moved focus to this button: back to the code input.
+        onClick={() =>
+          void confirmation.resend().then(() => inputRef.current?.focus())
+        }
+      >
+        {resendIn > 0
+          ? t('codeConfirmation.resend_in', {
+              defaultValue: `Resend code in ${resendIn} s`,
+              seconds: resendIn,
+            })
+          : t('codeConfirmation.resend', { defaultValue: 'Resend code' })}
+      </Button>
+    </Stack>
+  );
+}
+
+/** Props of {@link AuthCodeStep}. */
+export interface AuthCodeStepProps {
+  /** The address the code was sent to */
+  email: string;
+  /**
+   * Characters of the code: match the provider (Supabase: `mailer_otp_length`).
+   * @default 6
+   */
+  length?: number;
+  /** Called with the signed-in user once the code is confirmed */
+  onSuccess?: (user: AuthUser) => void;
+  /** Shows a "Change address" link that calls this (back to the form) */
+  onChangeEmail?: () => void;
+}
+
+/**
+ * The whole code step of a `confirmation: 'code'` sign-up or sign-in: "Enter the code
+ * sent to {email}", the code field (auto-submit, error, inline "new code sent",
+ * Resend with countdown) and, with `onChangeEmail`, a "Change address" link. No toast.
+ *
+ * @param props - AuthCodeStepProps
+ * @returns The code step
+ *
+ * @example
+ * ```tsx
+ * <AuthCodeStep email={email} onSuccess={next} onChangeEmail={() => setEmail(null)} />
+ * ```
+ */
+export function AuthCodeStep({
+  email,
+  length,
+  onSuccess,
+  onChangeEmail,
+}: AuthCodeStepProps) {
+  const { t } = useTranslation('auth');
+  const confirmation = useEmailCodeConfirmation({ email, length, onSuccess });
+  return (
+    <Stack>
+      <Text variant="muted">
+        {t('codeConfirmation.intro', {
+          defaultValue: `Enter the code sent to ${email}`,
+          email,
+        })}
+      </Text>
+      <AuthCodeField confirmation={confirmation} />
+      {onChangeEmail && (
+        <Button type="button" variant={BUTTON_VARIANT.LINK} onClick={onChangeEmail}>
+          {t('codeConfirmation.change_email', { defaultValue: 'Change address' })}
+        </Button>
+      )}
+    </Stack>
   );
 }

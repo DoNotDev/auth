@@ -63,7 +63,12 @@ TypeScript autocomplete shows you everything available.
 - **`signInWithPartner(partnerId, method?)`** - OAuth sign in
 - **`signOut()`** - Sign out
 - **`sendPasswordResetEmail(email)`** - Reset password
-- **`sendEmailVerification()`** - Verify email
+- **`sendEmailVerification(email?)`** - Send (again) the confirmation email or code
+- **`verifyEmailCode(email, code)`** - Confirm a sign-up address with the emailed code; signs the user in (providers implementing it: Supabase)
+
+**Admin:**
+
+- **`listUsers()`** - Every auth account (`AuthUserSummary[]`); needs the admin-only `listAuthUsers` server function deployed (Supabase, Firebase). `useAuthUsers()` wraps it: `{ users, loading, error, reload }`
 
 **Security (Firebase-verified):**
 

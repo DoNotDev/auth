@@ -129,7 +129,7 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     type(/^Email$/, 'pro@b.co');
     type(/^Password$/, 'Str0ng!pass');
     type(/^Confirm Password$/, 'Str0ng!pass');
-    await submit(/^Sign Up$/);
+    await submit(/^Create account$/);
     expect(api.createUserWithEmail).toHaveBeenCalledWith(
       'pro@b.co',
       'Str0ng!pass',
@@ -162,7 +162,7 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     type(/^Email$/, 'pro@b.co');
     type(/^Password$/, 'Str0ng!pass');
     type(/^Confirm Password$/, 'Str0ng!pass');
-    await submit(/^Sign Up$/);
+    await submit(/^Create account$/);
     expect(onSuccess).toHaveBeenCalledTimes(1);
     expect(toast.mock.calls[0]![0]).toMatchObject({ duration: 0 });
     expect(screen.queryByRole('alert')).toBeNull();
@@ -173,7 +173,7 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     type(/^Email$/, 'pro@b.co');
     type(/^Password$/, 'Str0ng!pass');
     type(/^Confirm Password$/, 'other');
-    await submit(/^Sign Up$/);
+    await submit(/^Create account$/);
     expect(screen.getByText('Passwords do not match')).toBeTruthy();
     expect(
       screen.getByText('Please accept the terms to continue')
