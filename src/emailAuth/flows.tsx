@@ -6,8 +6,10 @@
  * @description The behaviour of email/password sign-in, sign-up, sign-up code
  * confirmation and password-reset request, as hooks. The framework form and any app
  * form built on them get the same validation, error messages, anti-enumeration,
- * client-side throttle, CAPTCHA gate, remember me, breached-password check and
- * confirmations.
+ * client-side throttle, remember me, breached-password check and confirmations.
+ * CAPTCHA is not a flow option: with the env var `TURNSTILE_SITE_KEY` set, the provider
+ * takes a fresh Turnstile token for each gated call from the widget `AuthSubmitButton`
+ * renders (`getCaptchaToken`, `@donotdev/core`); a CAPTCHA failure is the form error.
  *
  * Inputs are uncontrolled: a flow reads the submitted form by field name (`email`,
  * `password`, `confirmPassword`, `rememberMe`, `consent`, `displayName`) at submit
@@ -26,6 +28,9 @@
  * and is signed in. Sign-in with `confirmation: 'code'`: an unconfirmed address gets a
  * fresh code and `onCodeSent` hands over the address for the same code step (also
  * when the resend is rate limited: the code already sent is still valid).
+ *
+ * The whole code-mode sign-up (account with app fields -> code -> app steps), steps
+ * orchestrated by the framework: `EmailSignUpFlow` (signUpFlow.tsx).
  *
  * @version 0.1.0
  * @since 0.2.3
@@ -48,6 +53,7 @@ import {
   codeErrorMessage,
   isAlreadyRegisteredError,
   isBreachedPassword,
+  isCaptchaError,
   isEmail,
   isRateLimitError,
   isUnconfirmedError,
@@ -71,6 +77,12 @@ export const AUTH_FIELD = {
  */
 const DISPLAY_NAME_METADATA_KEY = 'full_name';
 
+/**
+ * Sign-up: quiet time (ms) after the last keystroke before the breached-password
+ * pre-check starts, so it never fires per keystroke.
+ */
+export const BREACH_PRECHECK_DEBOUNCE_MS = 600;
+
 /** Which flow a form runs. */
 export type EmailAuthMode = 'signin' | 'signup' | 'reset';
 
@@ -88,11 +100,6 @@ export interface EmailAuthFlowOptions {
   onSuccess?: () => void;
   /** Called with the provider error after a failed attempt */
   onError?: (error: Error) => void;
-  /**
-   * CAPTCHA token. `undefined` = no CAPTCHA; while it is `null` / empty the submit is
-   * blocked. The app renders the widget.
-   */
-  captchaToken?: string | null;
 }
 
 /** Options of {@link useEmailSignIn}. */
@@ -173,7 +180,7 @@ export interface EmailAuthFlow {
   ready: boolean;
   /** The provider failed to start: show an "unavailable" notice instead of the form */
   unavailable: boolean;
-  /** Submit is blocked (CAPTCHA token missing, throttled) */
+  /** Submit is blocked (client-side throttle cooldown) */
   blocked: boolean;
   /** Form-level error (provider error, throttle) */
   error: string | null;
@@ -190,6 +197,14 @@ export interface EmailAuthFlow {
    * `AuthPasswordField` shows the requirements checklist only then.
    */
   passwordComposition?: boolean;
+  /**
+   * Sign-up only: tell the flow the new password changed. Once typing has stopped
+   * ({@link BREACH_PRECHECK_DEBOUNCE_MS}) and the password meets the strength rules,
+   * the flow runs the breached-password check in the background and shows the
+   * breached error on the password field at once; submit reuses that result.
+   * Absent in the other flows.
+   */
+  watchPassword?: (password: string) => void;
 }
 
 // =============================================================================
@@ -276,9 +291,6 @@ function useFlowCore(
     null
   );
 
-  const captchaMissing =
-    options.captchaToken !== undefined && !options.captchaToken;
-
   const resendVerification = async (email: string): Promise<void> => {
     try {
       await sendEmailVerification(email);
@@ -298,7 +310,7 @@ function useFlowCore(
     run: (form: HTMLFormElement, data: FormData) => Promise<void>
   ): Promise<void> => {
     event.preventDefault();
-    if (busy || captchaMissing || !isAvailable) return;
+    if (busy || !isAvailable) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const errors = validate(form, data);
@@ -337,20 +349,22 @@ function useFlowCore(
   const flow = (
     onSubmit: EmailAuthFlow['onSubmit'],
     passwordMinLength: number,
-    passwordComposition?: boolean
+    passwordComposition?: boolean,
+    watchPassword?: (password: string) => void
   ): EmailAuthFlow => ({
     mode,
     onSubmit,
     busy,
     ready: isAvailable,
     unavailable: status === 'degraded' || status === 'error',
-    blocked: captchaMissing || throttle.throttled,
+    blocked: throttle.throttled,
     error,
     fieldErrors,
     unconfirmedEmail,
     resendVerification,
     passwordMinLength,
     ...(passwordComposition === undefined ? {} : { passwordComposition }),
+    ...(watchPassword ? { watchPassword } : {}),
   });
 
   return { t, submit, flow, resendVerification, setFieldErrors };
@@ -385,7 +399,7 @@ const definedErrors = (errors: AuthFieldErrors): AuthFieldErrors =>
  * `AuthRememberMeField`. An unconfirmed address offers a resend, or with
  * `confirmation: 'code'` gets a fresh code and `onCodeSent(email)` (show `AuthCodeStep`).
  *
- * @param options - Callbacks, CAPTCHA token, confirmation mode
+ * @param options - Callbacks, confirmation mode
  * @returns The flow, for `AuthForm`
  *
  * @example
@@ -470,7 +484,7 @@ export function useEmailSignIn(
  * A project that does not require confirmation signs the user in at once:
  * `awaitingConfirmation: false`.
  *
- * @param options - Callbacks, CAPTCHA token, password policy, extra metadata,
+ * @param options - Callbacks, password policy, extra metadata,
  *   confirmation mode
  * @returns The flow, for `AuthForm`
  *
@@ -505,6 +519,52 @@ export function useEmailSignUp(options: EmailSignUpOptions = {}): EmailAuthFlow 
         console.error('[auth] existing-account reset email failed', error);
       }
     })();
+  };
+
+  // Breached-password pre-check. The result is cached against the exact password
+  // checked (promise included, so a check still in flight is awaited, not repeated);
+  // `watched` is the latest password reported by the field: an answer for any other
+  // value is stale and ignored. Nothing here is logged.
+  const breachCheck = useRef<{ password: string; breached: Promise<boolean> } | null>(
+    null
+  );
+  const watched = useRef('');
+  const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(debounce.current), []);
+
+  const breachedMessage = t(
+    'errors.breached_password',
+    'This password has appeared in a data breach. Please choose a different password.'
+  );
+
+  const checkBreached = (password: string): Promise<boolean> => {
+    if (breachCheck.current?.password === password) {
+      return breachCheck.current.breached;
+    }
+    const breached = isBreachedPassword(password);
+    breachCheck.current = { password, breached };
+    return breached;
+  };
+
+  const watchPassword = (password: string) => {
+    watched.current = password;
+    clearTimeout(debounce.current);
+    // The password changed: a breached error shown for the previous value is outdated.
+    core.setFieldErrors((errors) => {
+      if (errors.password !== breachedMessage) return errors;
+      const { password: _outdated, ...rest } = errors;
+      return rest;
+    });
+    if (newPasswordError(password, minLength, t, composition) !== null) return;
+    debounce.current = setTimeout(() => {
+      void checkBreached(password).then((breached) => {
+        if (!breached || watched.current !== password) return;
+        core.setFieldErrors((errors) => ({
+          ...errors,
+          password: breachedMessage,
+        }));
+      });
+    }, BREACH_PRECHECK_DEBOUNCE_MS);
   };
 
   const confirmEmailToast = (email: string) => {
@@ -554,13 +614,9 @@ export function useEmailSignUp(options: EmailSignUpOptions = {}): EmailAuthFlow 
       async (form, data) => {
         const email = textOf(data, AUTH_FIELD.EMAIL).trim();
         const password = textOf(data, AUTH_FIELD.PASSWORD);
-        if (await isBreachedPassword(password)) {
-          core.setFieldErrors({
-            password: t(
-              'errors.breached_password',
-              'This password has appeared in a data breach. Please choose a different password.'
-            ),
-          });
+        clearTimeout(debounce.current);
+        if (await checkBreached(password)) {
+          core.setFieldErrors({ password: breachedMessage });
           return;
         }
         const consent = checkboxOf(form, AUTH_FIELD.CONSENT);
@@ -595,7 +651,12 @@ export function useEmailSignUp(options: EmailSignUpOptions = {}): EmailAuthFlow 
       }
     );
 
-  return core.flow(onSubmit, minLength, options.passwordComposition);
+  return core.flow(
+    onSubmit,
+    minLength,
+    options.passwordComposition,
+    watchPassword
+  );
 }
 
 /** Options of {@link usePasswordResetRequest}. */
@@ -618,9 +679,10 @@ export interface PasswordResetRequestFlow extends EmailAuthFlow {
  * Password-reset request. Anti-enumeration: the same outcome whether or not the address
  * has an account; `sent` turns `true`, `onSuccess` runs and a toast that stays until
  * dismissed says to check the inbox (`toast: false`: no toast, the app shows the
- * message inline from `sent`).
+ * message inline from `sent`). Throttling and a CAPTCHA failure are the form error
+ * (the request did not go out); any other provider error is hidden.
  *
- * @param options - Callbacks, CAPTCHA token, toast opt-out
+ * @param options - Callbacks, toast opt-out
  * @returns The flow, for `AuthForm`
  */
 export function usePasswordResetRequest(
@@ -643,8 +705,8 @@ export function usePasswordResetRequest(
         try {
           await sendPasswordResetEmail(textOf(data, AUTH_FIELD.EMAIL).trim());
         } catch (e) {
-          // Throttling is the user's to know; "no such account" is not.
-          if (isRateLimitError(e)) throw e;
+          // Throttling and a refused CAPTCHA are the user's to know; "no such account" is not.
+          if (isRateLimitError(e) || isCaptchaError(e)) throw e;
         }
         setSent(true);
         options.onSuccess?.();

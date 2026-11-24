@@ -36,6 +36,14 @@ export {
 
 // Email auth pieces: compose them for a custom form, every capability included
 export { default as EmailPasswordForm } from './components/EmailPasswordForm';
+// The whole email sign-up (account -> code -> app steps), one component
+export { EmailSignUpFlow } from './emailAuth/signUpFlow';
+export type {
+  EmailSignUpFlowProps,
+  EmailSignUpStep,
+  EmailSignUpStepContext,
+  EmailSignUpStepId,
+} from './emailAuth/signUpFlow';
 export {
   AUTH_FIELD,
   useEmailCodeConfirmation,

@@ -24,6 +24,7 @@ import {
 } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
+import { AuthCaptcha } from '../emailAuth/captcha';
 import { useEmailLinkForm } from '../hooks/useEmailLinkForm';
 
 export interface EmailLinkFormProps {
@@ -124,6 +125,7 @@ export function EmailLinkForm({
 
         {error && <Alert variant={ALERT_VARIANT.ERROR} description={error} />}
 
+        <AuthCaptcha />
         <Button
           type="submit"
           disabled={!canSubmit}

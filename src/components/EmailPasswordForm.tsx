@@ -65,7 +65,6 @@ function EmailPasswordForm({
   className,
   tos,
   privacy,
-  captchaToken,
   confirmation = 'toast',
 }: EmailPasswordFormProps) {
   const { t } = useTranslation('auth');
@@ -76,7 +75,6 @@ function EmailPasswordForm({
   const options = {
     onSuccess: () => onSuccess?.(undefined),
     onError,
-    captchaToken,
   };
   const signIn = useEmailSignIn({ ...options, confirmation, onCodeSent: setCodeEmail });
   const signUp = useEmailSignUp({

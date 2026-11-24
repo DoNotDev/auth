@@ -18,7 +18,11 @@ import { Progress, Stack, Text, cn } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
 export interface PasswordStrengthIndicatorProps {
-  /** Current password value */
+  /**
+   * Current password value. Empty: idle state (empty bar, muted placeholder label,
+   * unmet checklist) with exactly the layout of the typed state, so the slot can stay
+   * mounted before the first keystroke without shifting the form when typing starts.
+   */
   password: string;
   /** Minimum password length */
   minLength?: number;
@@ -125,7 +129,9 @@ const strengthToVariant: Record<
  * PasswordStrengthIndicator Component
  *
  * Displays visual password strength indicator and optional requirements checklist.
- * Uses Progress component for the strength bar and Text for labels.
+ * Uses Progress component for the strength bar and Text for labels. The bar is named
+ * after its visible label and announces the strength in words (`aria-valuetext`), not
+ * a bare percentage.
  *
  * @component
  * @version 0.1.0
@@ -152,6 +158,8 @@ export function PasswordStrengthIndicator({
     return getPasswordRequirements(password, minLength, translate);
   }, [password, minLength, t]);
 
+  const idle = password === '';
+
   const strengthLabels: Record<PasswordStrength, string> = {
     weak: t('passwordStrength.weak', 'Weak'),
     fair: t('passwordStrength.fair', 'Fair'),
@@ -170,14 +178,16 @@ export function PasswordStrengthIndicator({
           <Text
             as="strong"
             level="caption"
-            variant={strengthToVariant[strength]}
+            variant={idle ? 'muted' : strengthToVariant[strength]}
           >
-            {strengthLabels[strength]}
+            {idle ? '\u2013' : strengthLabels[strength]}
           </Text>
         </Stack>
         <Progress
-          value={strengthToPercent[strength]}
-          variant={strengthToVariant[strength]}
+          aria-label={t('passwordStrength.label', 'Password strength')}
+          aria-valuetext={idle ? undefined : strengthLabels[strength]}
+          value={idle ? 0 : strengthToPercent[strength]}
+          variant={idle ? 'default' : strengthToVariant[strength]}
           className="dndev-password-strength-bar"
         />
       </Stack>

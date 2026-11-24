@@ -9,7 +9,9 @@
  * autocomplete token (password managers), unique ids, ARIA error wiring and i18n.
  *
  * Inputs are uncontrolled (read at submit); the only per-keystroke state is the
- * password strength meter of the sign-up password field.
+ * password strength meter of the sign-up password field. While a submit runs, text
+ * inputs are `readOnly`, never `disabled` (values and browser autofill stay painted
+ * as they were; no muted fieldset).
  *
  * `AuthCodeField` is the exception: the code step, outside any `AuthForm`, driven by
  * `useEmailCodeConfirmation`; `AuthCodeStep` wraps both with the intro and "Change
@@ -43,6 +45,7 @@ import type { AuthUser } from '@donotdev/core';
 
 import { useAuth } from '../useAuth';
 import { PasswordStrengthIndicator } from '../components/PasswordStrengthIndicator';
+import { AuthCaptcha } from './captcha';
 import { AUTH_FIELD, useEmailCodeConfirmation } from './flows';
 import type { EmailAuthFlow, EmailCodeConfirmation } from './flows';
 
@@ -146,7 +149,7 @@ export function AuthEmailField({
         label={label ?? t('email', 'Email')}
         placeholder={placeholder ?? t('emailPlaceholder', 'Enter your email')}
         defaultValue={defaultValue}
-        disabled={flow.busy}
+        readOnly={flow.busy}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
         data-variant={error ? 'destructive' : undefined}
@@ -188,7 +191,7 @@ export function AuthNameField({
       placeholder={placeholder}
       defaultValue={defaultValue}
       info={info}
-      disabled={flow.busy}
+      readOnly={flow.busy}
       className="dndev-w-full"
     />
   );
@@ -206,7 +209,9 @@ function usePasswordRevealLabels(): { show: string; hide: string } {
 /**
  * Password field. Sign-in: `current-password`. Sign-up: `new-password` and a strength
  * meter, with the policy requirements unless the flow's `passwordComposition` is
- * `false`.
+ * `false`. The meter's slot is always mounted (idle until the first keystroke), so
+ * typing never shifts the layout. It also reports each change to
+ * `flow.watchPassword`, which runs the breached-password pre-check.
  *
  * @param props - AuthTextFieldProps
  * @returns The field
@@ -233,17 +238,21 @@ export function AuthPasswordField({ label, placeholder }: AuthTextFieldProps) {
         }
         onInput={
           isNew
-            ? (e) => setTyped((e.target as HTMLInputElement).value)
+            ? (e) => {
+                const value = (e.target as HTMLInputElement).value;
+                setTyped(value);
+                flow.watchPassword?.(value);
+              }
             : undefined
         }
-        disabled={flow.busy}
+        readOnly={flow.busy}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
         data-variant={error ? 'destructive' : undefined}
         className="dndev-w-full"
       />
       <FieldError id={errorId} message={error} />
-      {isNew && typed !== '' && (
+      {isNew && (
         <PasswordStrengthIndicator
           password={typed}
           minLength={flow.passwordMinLength}
@@ -283,7 +292,7 @@ export function AuthConfirmPasswordField({
           placeholder ??
           t('confirmPasswordPlaceholder', 'Re-enter your password')
         }
-        disabled={flow.busy}
+        readOnly={flow.busy}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
         data-variant={error ? 'destructive' : undefined}
@@ -324,7 +333,6 @@ export function AuthRememberMeField({
     <Checkbox
       name={AUTH_FIELD.REMEMBER_ME}
       defaultChecked={defaultChecked}
-      disabled={flow.busy}
       label={label ?? t('rememberMe', 'Remember me')}
     />
   );
@@ -408,7 +416,6 @@ export function AuthConsentField({ tos, privacy }: AuthConsentFieldProps) {
         <Checkbox
           id={id}
           name={AUTH_FIELD.CONSENT}
-          disabled={flow.busy}
           aria-invalid={!!error}
           aria-describedby={error ? errorId : undefined}
         />
@@ -469,8 +476,11 @@ export interface AuthSubmitButtonProps {
 }
 
 /**
- * Submit button: full width, loading while the flow runs, disabled until the provider
- * is ready and while CAPTCHA / throttle block.
+ * Submit button: full width, loading while the flow runs (including the wait for a
+ * CAPTCHA token), disabled until the provider is ready and while throttled. With the
+ * env var `TURNSTILE_SITE_KEY` set, the CAPTCHA widget renders just above it (hidden
+ * unless Cloudflare asks the visitor to interact); every flow call of the form takes its
+ * token there.
  *
  * @param props - AuthSubmitButtonProps
  * @returns The button
@@ -485,15 +495,18 @@ export function AuthSubmitButton({ children }: AuthSubmitButtonProps) {
         ? t('forgotPassword.submit', 'Send reset link')
         : t('actions.sign_in_submit', 'Sign In');
   return (
-    <Button
-      type="submit"
-      variant={BUTTON_VARIANT.PRIMARY}
-      fullWidth
-      loading={flow.busy}
-      disabled={!flow.ready || flow.blocked}
-    >
-      {children ?? standard}
-    </Button>
+    <Stack gap="tight">
+      <AuthCaptcha />
+      <Button
+        type="submit"
+        variant={BUTTON_VARIANT.PRIMARY}
+        fullWidth
+        loading={flow.busy}
+        disabled={!flow.ready || flow.blocked}
+      >
+        {children ?? standard}
+      </Button>
+    </Stack>
   );
 }
 
@@ -510,6 +523,8 @@ export interface AuthCodeFieldProps {
  * paste of the whole code), submitted as soon as the last character is typed, the
  * error under it, "A new code has been sent." under it after a resend (no toast), and
  * a Resend button with its countdown; after a resend the code input has focus again.
+ * With `TURNSTILE_SITE_KEY` set, the CAPTCHA widget renders above Resend (a resend is a
+ * gated call).
  * Render it outside the
  * sign-up `AuthForm` (it is not a form field).
  *
@@ -551,6 +566,7 @@ export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
           {t('codeConfirmation.sent', { defaultValue: 'A new code has been sent.' })}
         </Text>
       )}
+      <AuthCaptcha />
       <Button
         type="button"
         variant={BUTTON_VARIANT.LINK}

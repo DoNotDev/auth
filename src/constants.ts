@@ -172,12 +172,6 @@ export interface EmailPasswordFormProps
    */
   privacy?: string | React.ReactNode | false;
   /**
-   * CAPTCHA token to include with auth requests.
-   * Consumer is responsible for rendering the CAPTCHA widget (e.g. Turnstile)
-   * and passing the token here. When provided, submit is blocked until token is truthy.
-   */
-  captchaToken?: string;
-  /**
    * How a sign-up (or a sign-in of an unconfirmed address) confirms the email
    * (default `'toast'`: the "check your email" toast with Resend). `'code'`: the form
    * shows `AuthCodeStep` (a 6-character emailed code), then calls `onSuccess` once

@@ -4,7 +4,8 @@
  * @fileoverview Email auth rules
  * @description The rules every email/password flow shares, framework form or app form:
  * provider error -> user message, email format, new-password policy, breached-password
- * check (HaveIBeenPwned k-anonymity, NIST 800-63B), confirmation-code errors.
+ * check (HaveIBeenPwned k-anonymity, NIST 800-63B), confirmation-code errors, CAPTCHA
+ * failures.
  *
  * Provider errors are recognised by their structured code first (the error's `code`,
  * or the provider code `wrapAuthError` keeps in `details.originalCode`), then by
@@ -97,6 +98,20 @@ export function isAlreadyRegisteredError(error: unknown): boolean {
   );
 }
 
+const CAPTCHA_CODES: ReadonlySet<string> = new Set([
+  'captcha_failed', // GoTrue (token missing / refused) and the framework token source
+  'auth/captcha-check-failed', // Firebase
+]);
+
+/**
+ * CAPTCHA failure: the auth server refused the token, or no token could be obtained
+ * (Turnstile script blocked, widget error, no answer in time). Structured code only:
+ * the wrapped message carries the email address, which may contain "captcha".
+ */
+export function isCaptchaError(error: unknown): boolean {
+  return hasCode(error, CAPTCHA_CODES);
+}
+
 const ERROR_MAP: Array<{
   test: (msg: string) => boolean;
   key: string;
@@ -141,8 +156,14 @@ const ERROR_MAP: Array<{
   },
 ];
 
-/** User-facing message for a provider error (rate limit, credentials, network...). */
+/** User-facing message for a provider error (CAPTCHA, rate limit, credentials, network...). */
 export function authErrorMessage(error: unknown, t: AuthT): string {
+  if (isCaptchaError(error)) {
+    return t(
+      'errors.captcha_failed',
+      'The security check failed. Please try again.'
+    );
+  }
   const msg = messageOf(error);
   for (const mapping of ERROR_MAP) {
     if (mapping.test(msg)) return t(mapping.key, mapping.fallback);
@@ -199,10 +220,12 @@ export function isInvalidCodeError(error: unknown): boolean {
 }
 
 /**
- * User-facing message for a failed code confirmation or code resend: expired code,
- * wrong code, rate limit (structured codes included), else `authErrorMessage`.
+ * User-facing message for a failed code confirmation or code resend: CAPTCHA failure
+ * (resend), expired code, wrong code, rate limit (structured codes included), else
+ * `authErrorMessage`.
  */
 export function codeErrorMessage(error: unknown, t: AuthT): string {
+  if (isCaptchaError(error)) return authErrorMessage(error, t);
   if (isCodeExpiredError(error)) {
     return t('errors.code_expired', 'This code has expired. Request a new code.');
   }
