@@ -81,13 +81,10 @@ export function EmailLinkForm({
         <Stack align="center">
           <CheckCircle className="dndev-size-touch" />
           <Text as="h3" level="h3">
-            {t('emailLink.checkEmail', 'Check Your Email')}
+            {t('checkEmail')}
           </Text>
           <Text level="small" variant="muted" className="dndev-text-center">
-            {t(
-              'emailLink.sentMessage',
-              `We've sent a sign-in link to ${email}. Click the link in your email to complete sign-in.`
-            )}
+            {t('emailLink.sentMessage', { email })}
           </Text>
         </Stack>
 
@@ -98,7 +95,7 @@ export function EmailLinkForm({
             icon={Mail}
             iconEnd={false}
           >
-            {t('emailLink.resend', 'Resend Link')}
+            {t('emailLink.resend')}
           </Button>
         </Stack>
       </Stack>
@@ -111,13 +108,10 @@ export function EmailLinkForm({
       <Stack>
         <Input
           type="email"
-          label={t('emailLink.emailLabel', 'Email Address')}
+          label={t('emailLink.emailLabel')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder={t(
-            'emailLink.emailPlaceholder',
-            'Enter your email address'
-          )}
+          placeholder={t('emailPlaceholder')}
           required
           disabled={isLoading}
           className="dndev-w-full"
@@ -133,16 +127,11 @@ export function EmailLinkForm({
           iconEnd={false}
           className="dndev-w-full"
         >
-          {isLoading
-            ? t('emailLink.sending', 'Sending Link...')
-            : t('emailLink.sendLink', 'Send Sign-In Link')}
+          {isLoading ? t('emailLink.sending') : t('emailLink.sendLink')}
         </Button>
 
         <Text level="small" variant="muted" className="dndev-text-center">
-          {t(
-            'emailLink.helpText',
-            "We'll send you a secure link to sign in without a password."
-          )}
+          {t('emailLink.helpText')}
         </Text>
       </Stack>
     </form>

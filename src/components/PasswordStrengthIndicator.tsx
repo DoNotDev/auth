@@ -69,38 +69,27 @@ function calculatePasswordStrength(password: string): PasswordStrength {
 function getPasswordRequirements(
   password: string,
   minLength: number,
-  t: (
-    key: string,
-    defaultValue?: string,
-    values?: Record<string, unknown>
-  ) => string
+  t: (key: string, values?: Record<string, unknown>) => string
 ): PasswordRequirement[] {
   return [
     {
-      label: t(
-        'passwordRequirement.length',
-        `At least ${minLength} characters`,
-        { count: minLength }
-      ),
+      label: t('passwordRequirement.length', { count: minLength }),
       met: password.length >= minLength,
     },
     {
-      label: t('passwordRequirement.uppercase', 'One uppercase letter'),
+      label: t('passwordRequirement.uppercase'),
       met: /[A-Z]/.test(password),
     },
     {
-      label: t('passwordRequirement.lowercase', 'One lowercase letter'),
+      label: t('passwordRequirement.lowercase'),
       met: /[a-z]/.test(password),
     },
     {
-      label: t('passwordRequirement.number', 'One number'),
+      label: t('passwordRequirement.number'),
       met: /[0-9]/.test(password),
     },
     {
-      label: t(
-        'passwordRequirement.special',
-        'One special character (!@#$%^&*)'
-      ),
+      label: t('passwordRequirement.special'),
       met: /[^a-zA-Z0-9]/.test(password),
     },
   ];
@@ -150,21 +139,18 @@ export function PasswordStrengthIndicator({
   );
 
   const requirements = useMemo(() => {
-    const translate = (
-      key: string,
-      defaultValue?: string,
-      values?: Record<string, unknown>
-    ) => t(key, { defaultValue: defaultValue || '', ...values });
+    const translate = (key: string, values?: Record<string, unknown>) =>
+      t(key, values);
     return getPasswordRequirements(password, minLength, translate);
   }, [password, minLength, t]);
 
   const idle = password === '';
 
   const strengthLabels: Record<PasswordStrength, string> = {
-    weak: t('passwordStrength.weak', 'Weak'),
-    fair: t('passwordStrength.fair', 'Fair'),
-    good: t('passwordStrength.good', 'Good'),
-    strong: t('passwordStrength.strong', 'Strong'),
+    weak: t('passwordStrength.weak'),
+    fair: t('passwordStrength.fair'),
+    good: t('passwordStrength.good'),
+    strong: t('passwordStrength.strong'),
   };
 
   return (
@@ -173,7 +159,7 @@ export function PasswordStrengthIndicator({
       <Stack gap="tight">
         <Stack direction="row" align="center" justify="between" gap="tight">
           <Text as="span" level="caption" variant="muted">
-            {t('passwordStrength.label', 'Password strength')}:
+            {t('passwordStrength.label')}:
           </Text>
           <Text
             as="strong"
@@ -184,7 +170,7 @@ export function PasswordStrengthIndicator({
           </Text>
         </Stack>
         <Progress
-          aria-label={t('passwordStrength.label', 'Password strength')}
+          aria-label={t('passwordStrength.label')}
           aria-valuetext={idle ? undefined : strengthLabels[strength]}
           value={idle ? 0 : strengthToPercent[strength]}
           variant={idle ? 'default' : strengthToVariant[strength]}
@@ -196,7 +182,7 @@ export function PasswordStrengthIndicator({
       {showRequirements && (
         <Stack gap="tight" className="dndev-password-requirements">
           <Text as="strong" level="caption" variant="muted">
-            {t('passwordRequirements', 'Password requirements')}:
+            {t('passwordRequirements')}:
           </Text>
           <Stack gap="tight" data-inset="true">
             {requirements.map((req, index) => (

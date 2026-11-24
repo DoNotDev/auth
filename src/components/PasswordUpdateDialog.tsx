@@ -51,7 +51,7 @@ interface PasswordUpdateDialogProps {
  * @author AMBROISE PARK Consulting
  */
 function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
-  const { t } = useTranslation('profile');
+  const { t } = useTranslation('auth');
   const [showDialog, setShowDialog] = useState(false);
 
   const {
@@ -75,12 +75,7 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError('root', {
-        message:
-          message ||
-          t(
-            'profile.security.password.dialog.error',
-            'Failed to update password'
-          ),
+        message: message || t('passwordUpdate.error'),
       });
     }
   };
@@ -96,14 +91,11 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
       onOpenChange={handleOpenChange}
       trigger={
         <Button variant={BUTTON_VARIANT.OUTLINE}>
-          {t('profile.security.password.change', 'Change Password')}
+          {t('passwordUpdate.change')}
         </Button>
       }
-      title={t('profile.security.password.dialog.title', 'Change Password')}
-      description={t(
-        'profile.security.password.dialog.description',
-        'Enter your new password below'
-      )}
+      title={t('passwordUpdate.title')}
+      description={t('resetPassword.enter_new')}
       footer={
         <>
           <Button
@@ -111,15 +103,15 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
-            {t('profile.security.password.dialog.cancel', 'Cancel')}
+            {t('cancel')}
           </Button>
           <Button
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || !passwordValue}
           >
             {isSubmitting
-              ? t('profile.security.password.dialog.updating', 'Updating...')
-              : t('profile.security.password.dialog.update', 'Update Password')}
+              ? t('passwordUpdate.updating')
+              : t('passwordUpdate.update')}
           </Button>
         </>
       }
@@ -136,30 +128,18 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
           name="password"
           control={control}
           rules={{
-            required: t(
-              'profile.security.password.dialog.required',
-              'Password is required'
-            ),
+            required: t('passwordRequired'),
             minLength: {
               value: 8,
-              message: t(
-                'profile.security.password.dialog.minLength',
-                'Password must be at least 8 characters'
-              ),
+              message: t('passwordMinLength', { count: 8 }),
             },
           }}
           render={({ field }) => (
             <Stack gap="tight">
               <PasswordInput
                 {...field}
-                label={t(
-                  'profile.security.password.dialog.newPassword',
-                  'New Password'
-                )}
-                placeholder={t(
-                  'profile.security.password.dialog.placeholder',
-                  'Enter new password'
-                )}
+                label={t('resetPassword.new_password')}
+                placeholder={t('passwordUpdate.placeholder')}
                 disabled={isSubmitting}
                 aria-invalid={!!errors.password}
                 aria-describedby={

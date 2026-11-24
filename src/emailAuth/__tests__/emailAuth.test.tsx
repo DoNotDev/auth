@@ -28,13 +28,12 @@ vi.mock('@donotdev/components', async (importOriginal) => {
 
 vi.mock('@donotdev/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@donotdev/core')>();
+  const { localeT } = await import('./localeT');
   return {
     ...actual,
     useAppConfig: () => undefined,
-    useTranslation: () => ({
-      // Components pass the fallback as a string or as `defaultValue`
-      t: (key: string, options?: string | { defaultValue?: string }) =>
-        (typeof options === 'string' ? options : options?.defaultValue) ?? key,
+    useTranslation: (namespace?: string | string[]) => ({
+      t: localeT(namespace),
       i18n: { language: 'en' },
     }),
   };
@@ -142,7 +141,7 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     // The Resend action resends to the address typed at sign-up
     api.sendEmailVerification.mockResolvedValue(undefined);
     render(options.action);
-    await submit(/Resend email/);
+    await submit(/Resend Email/);
     expect(api.sendEmailVerification).toHaveBeenCalledWith('pro@b.co');
   });
 
@@ -186,7 +185,7 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     const onSuccess = vi.fn();
     render(<EmailPasswordForm onSuccess={onSuccess} />);
     type(/^Email$/, 'who@b.co');
-    fireEvent.click(screen.getByRole('button', { name: /Forgot password\?/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Forgot Password\?/ }));
     expect((screen.getByLabelText(/^Email$/) as HTMLInputElement).value).toBe(
       'who@b.co'
     );

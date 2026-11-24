@@ -294,7 +294,13 @@ function useFlowCore(
   const resendVerification = async (email: string): Promise<void> => {
     try {
       await sendEmailVerification(email);
-      toast('success', t('verificationSent', 'Verification email sent.'));
+      toast(
+        'success',
+        t(
+          'verificationSent',
+          "We've sent you a verification link to prove ownership of your account."
+        )
+      );
     } catch (e) {
       toast('error', authErrorMessage(e, t));
     }
@@ -581,9 +587,9 @@ export function useEmailSignUp(options: EmailSignUpOptions = {}): EmailAuthFlow 
       toastType: 'success',
       duration: 0,
       action: (
-        <ToastAction asChild altText={t('resendEmail', 'Resend email')}>
+        <ToastAction asChild altText={t('resendEmail', 'Resend Email')}>
           <Button onClick={() => void core.resendVerification(email)}>
-            {t('resendEmail', 'Resend email')}
+            {t('resendEmail', 'Resend Email')}
           </Button>
         </ToastAction>
       ),

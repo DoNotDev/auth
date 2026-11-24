@@ -91,11 +91,8 @@ export function ReauthDialog({
     <Dialog
       open={open}
       onOpenChange={(open) => !open && onCancel()}
-      title={t('deleteAccount.reauth.title', 'Confirm Your Identity')}
-      description={t(
-        'deleteAccount.reauth.description',
-        'For security, please re-enter your password to continue.'
-      )}
+      title={t('deleteAccount.reauth.title')}
+      description={t('deleteAccount.reauth.description')}
       footer={
         <>
           <Button
@@ -103,7 +100,7 @@ export function ReauthDialog({
             onClick={onCancel}
             disabled={isLoading}
           >
-            {t('deleteAccount.reauth.cancel', 'Cancel')}
+            {t('deleteAccount.reauth.cancel')}
           </Button>
           <Button
             variant={BUTTON_VARIANT.DEFAULT}
@@ -111,8 +108,8 @@ export function ReauthDialog({
             disabled={isLoading || !password}
           >
             {isLoading
-              ? t('deleteAccount.reauth.verifying', 'Verifying...')
-              : t('deleteAccount.reauth.continue', 'Continue')}
+              ? t('deleteAccount.reauth.verifying')
+              : t('deleteAccount.reauth.continue')}
           </Button>
         </>
       }
@@ -127,12 +124,9 @@ export function ReauthDialog({
           <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            label={t('deleteAccount.reauth.password', 'Password')}
+            label={t('deleteAccount.reauth.password')}
             disabled={isLoading}
-            placeholder={t(
-              'deleteAccount.reauth.passwordPlaceholder',
-              'Enter your password'
-            )}
+            placeholder={t('deleteAccount.reauth.passwordPlaceholder')}
             required
             className="dndev-w-full"
           />
@@ -207,11 +201,8 @@ export function ConfirmDeleteDialog({
       open={open}
       onOpenChange={(open) => !open && onCancel()}
       data-content-size="text"
-      title={t('deleteAccount.confirm.title', 'Delete Your Account?')}
-      description={t(
-        'deleteAccount.confirm.description',
-        'This action cannot be undone. This will permanently delete your account.'
-      )}
+      title={t('deleteAccount.confirm.title')}
+      description={t('deleteAccount.confirm.description')}
       footer={
         <>
           <Button
@@ -219,7 +210,7 @@ export function ConfirmDeleteDialog({
             onClick={onCancel}
             disabled={isLoading}
           >
-            {t('deleteAccount.confirm.cancel', 'Cancel')}
+            {t('deleteAccount.confirm.cancel')}
           </Button>
           <Button
             variant={BUTTON_VARIANT.DESTRUCTIVE}
@@ -228,8 +219,8 @@ export function ConfirmDeleteDialog({
             disabled={isLoading || !confirmed}
           >
             {isLoading
-              ? t('deleteAccount.confirm.deleting', 'Deleting...')
-              : t('deleteAccount.confirm.delete', 'Delete My Account')}
+              ? t('deleteAccount.confirm.deleting')
+              : t('deleteAccount.confirm.delete')}
           </Button>
         </>
       }
@@ -237,41 +228,26 @@ export function ConfirmDeleteDialog({
       <Stack gap="large">
         <Stack>
           <Text as="h4" level="h4">
-            {t('deleteAccount.confirm.whatDeleted', 'What will be deleted:')}
+            {t('deleteAccount.confirm.whatDeleted')}
           </Text>
           <List
             items={[
-              t(
-                'deleteAccount.confirm.credentials',
-                'Your account and authentication credentials'
-              ),
-              t('deleteAccount.confirm.profile', 'Your profile information'),
-              t('deleteAccount.confirm.oauth', 'All connected OAuth providers'),
-              t(
-                'deleteAccount.confirm.subscriptions',
-                'Active subscriptions (will be canceled)'
-              ),
+              t('deleteAccount.confirm.credentials'),
+              t('deleteAccount.confirm.profile'),
+              t('deleteAccount.confirm.oauth'),
+              t('deleteAccount.confirm.subscriptions'),
             ]}
           />
         </Stack>
 
         <Stack>
           <Text as="h4" level="h4">
-            {t(
-              'deleteAccount.confirm.whatKept',
-              'What will be kept (anonymized):'
-            )}
+            {t('deleteAccount.confirm.whatKept')}
           </Text>
           <List
             items={[
-              t(
-                'deleteAccount.confirm.billing',
-                'Billing history for tax/accounting purposes'
-              ),
-              t(
-                'deleteAccount.confirm.invoices',
-                'Past invoices and transaction records'
-              ),
+              t('deleteAccount.confirm.billing'),
+              t('deleteAccount.confirm.invoices'),
             ]}
           />
         </Stack>
@@ -283,10 +259,7 @@ export function ConfirmDeleteDialog({
             onCheckedChange={(checked) => setConfirmed(checked === true)}
           />
           <Label htmlFor="confirm-delete">
-            {t(
-              'deleteAccount.confirm.checkbox',
-              'I understand this action cannot be undone'
-            )}
+            {t('deleteAccount.confirm.checkbox')}
           </Label>
         </Stack>
 

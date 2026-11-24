@@ -112,7 +112,7 @@ function EmailVerification({
           >
             {emailVerification.status === 'pending'
               ? t('status.verifying')
-              : t('buttons.verify', 'Verify')}
+              : t('dndev:buttons.verify')}
           </Button>
         </Stack>
 
@@ -128,12 +128,8 @@ function EmailVerification({
               emailVerification.status === 'error'
                 ? ('error' in emailVerification
                     ? emailVerification.error
-                    : undefined) ||
-                  t('emailVerification.error', 'An error occurred')
-                : t(
-                    'emailVerification.sending',
-                    'Sending verification email...'
-                  )
+                    : undefined) || t('dndev:emailVerification.error')
+                : t('dndev:emailVerification.sending')
             }
           />
         )}

@@ -273,25 +273,25 @@ export function newPasswordError(
   if (!composition) return null;
   if (!/[A-Z]/.test(password)) {
     return t(
-      'passwordRequirement.uppercase',
+      'passwordError.uppercase',
       'Password must contain at least one uppercase letter'
     );
   }
   if (!/[a-z]/.test(password)) {
     return t(
-      'passwordRequirement.lowercase',
+      'passwordError.lowercase',
       'Password must contain at least one lowercase letter'
     );
   }
   if (!/[0-9]/.test(password)) {
     return t(
-      'passwordRequirement.number',
+      'passwordError.number',
       'Password must contain at least one number'
     );
   }
   if (!/[^a-zA-Z0-9]/.test(password)) {
     return t(
-      'passwordRequirement.special',
+      'passwordError.special',
       'Password must contain at least one special character'
     );
   }

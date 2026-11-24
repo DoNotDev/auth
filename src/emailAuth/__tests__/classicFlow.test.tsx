@@ -52,22 +52,12 @@ vi.mock('@donotdev/components', async (importOriginal) => {
 
 vi.mock('@donotdev/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@donotdev/core')>();
+  const { localeT } = await import('./localeT');
   return {
     ...actual,
     useAppConfig: () => undefined,
-    useTranslation: () => ({
-      // Fallback (string or `defaultValue`), with {{name}} interpolation
-      t: (
-        key: string,
-        options?: string | ({ defaultValue?: string } & Record<string, unknown>)
-      ) => {
-        const text =
-          (typeof options === 'string' ? options : options?.defaultValue) ?? key;
-        const vars = typeof options === 'object' ? options : {};
-        return text.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
-          String(vars[name])
-        );
-      },
+    useTranslation: (namespace?: string | string[]) => ({
+      t: localeT(namespace),
       i18n: { language: 'en' },
     }),
   };

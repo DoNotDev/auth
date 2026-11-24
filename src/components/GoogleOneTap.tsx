@@ -203,7 +203,7 @@ function GoogleOneTap({
                 color: 'var(--muted-foreground)',
               }}
             >
-              {t('googleOneTapLoading', 'Loading Google One Tap...')}
+              {t('googleOneTapLoading')}
             </span>
           </Stack>
         </Card>

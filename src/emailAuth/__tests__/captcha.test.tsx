@@ -8,6 +8,8 @@ import { useEmailSignIn, usePasswordResetRequest } from '../flows';
 import { authErrorMessage, codeErrorMessage, isCaptchaError } from '../rules';
 import type { AuthT } from '../rules';
 
+import { localeT } from './localeT';
+
 const api = {
   isAvailable: true,
   status: 'ready',
@@ -37,6 +39,7 @@ const captcha = {
 
 vi.mock('@donotdev/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@donotdev/core')>();
+  const { localeT } = await import('./localeT');
   return {
     ...actual,
     useAppConfig: () => undefined,
@@ -45,16 +48,16 @@ vi.mock('@donotdev/core', async (importOriginal) => {
       captcha.mount(container, options);
       return { take: vi.fn(), remove: captcha.remove };
     },
-    useTranslation: () => ({
-      t: (key: string, options?: string | { defaultValue?: string }) =>
-        (typeof options === 'string' ? options : options?.defaultValue) ?? key,
+    useTranslation: (namespace?: string | string[]) => ({
+      t: localeT(namespace),
       i18n: { language: 'fr' },
       language: 'fr',
     }),
   };
 });
 
-const t: AuthT = (_key, fallback) => fallback;
+const authT = localeT();
+const t: AuthT = (key, _fallback, values) => authT(key, values);
 const CAPTCHA_MESSAGE = 'The security check failed. Please try again.';
 const captchaFailure = () =>
   Object.assign(new Error('captcha verification failed: widget error 300010'), {

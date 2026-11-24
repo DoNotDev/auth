@@ -163,7 +163,7 @@ const MultipleAuthProvidersComponent: ComponentType<
       className="dndev-mx-auto"
       id={componentId}
       role="region"
-      aria-label={ariaLabel || t('aria.signInOptions', 'Sign in options')}
+      aria-label={ariaLabel || t('dndev:aria.signInOptions')}
     >
       {renderProviders()}
 
@@ -171,10 +171,7 @@ const MultipleAuthProvidersComponent: ComponentType<
       {authError && isAvailable && (
         <Alert
           variant={ALERT_VARIANT.ERROR}
-          description={
-            authError.message ||
-            t('errorGeneric', 'Authentication failed. Please try again.')
-          }
+          description={authError.message || t('errorGeneric')}
         />
       )}
 

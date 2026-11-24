@@ -218,10 +218,7 @@ export function PasswordResetCallback() {
           setResetState('expired');
         } else {
           setError('root', {
-            message: t(
-              'resetPassword.error',
-              'Failed to reset password. Please try again.'
-            ),
+            message: t('resetPassword.error'),
           });
         }
       }
@@ -262,12 +259,12 @@ export function PasswordResetCallback() {
       style={{ maxWidth: 'min(28rem, 90vw)' }}
       title={
         resetState === 'success'
-          ? t('resetPassword.success_title', 'Password updated')
+          ? t('resetPassword.success_title')
           : resetState === 'expired' || resetState === 'invalid'
-            ? t('resetPassword.expired_title', 'Link expired')
+            ? t('resetPassword.expired_title')
             : resetState === 'loading'
-              ? t('resetPassword.verifying', 'Verifying...')
-              : t('resetPassword.title', 'Set new password')
+              ? t('resetPassword.verifying')
+              : t('resetPassword.title')
       }
       showClose
     >
@@ -276,7 +273,7 @@ export function PasswordResetCallback() {
         <Stack align="center" justify="center">
           <Spinner />
           <Text level="body" variant="muted">
-            {t('resetPassword.verifying', 'Verifying reset link...')}
+            {t('resetPassword.verifying')}
           </Text>
         </Stack>
       )}
@@ -288,15 +285,8 @@ export function PasswordResetCallback() {
             variant={ALERT_VARIANT.WARNING}
             description={
               resetState === 'expired'
-                ? t(
-                    'resetPassword.expired_description',
-                    'This password reset link has expired. Please request a new one.'
-                  )
-                : errorDescription ||
-                  t(
-                    'resetPassword.invalid_description',
-                    'This password reset link is invalid. Please request a new one.'
-                  )
+                ? t('resetPassword.expired_description')
+                : errorDescription || t('resetPassword.invalid_description')
             }
           />
           <Button
@@ -304,7 +294,7 @@ export function PasswordResetCallback() {
             onClick={handleDismiss}
             fullWidth
           >
-            {t('resetPassword.back_to_signin', 'Back to Sign In')}
+            {t('resetPassword.back_to_signin')}
           </Button>
         </Stack>
       )}
@@ -314,17 +304,14 @@ export function PasswordResetCallback() {
         <Stack>
           <Alert
             variant={ALERT_VARIANT.SUCCESS}
-            description={t(
-              'resetPassword.success_description',
-              'Your password has been reset successfully. You are now signed in.'
-            )}
+            description={t('resetPassword.success_description')}
           />
           <Button
             variant={BUTTON_VARIANT.PRIMARY}
             onClick={handleDismiss}
             fullWidth
           >
-            {t('resetPassword.continue', 'Continue')}
+            {t('resetPassword.continue')}
           </Button>
         </Stack>
       )}
@@ -335,10 +322,7 @@ export function PasswordResetCallback() {
           <Stack>
             {resetEmail && (
               <Text level="small" variant="muted">
-                {t(
-                  'resetPassword.for_email',
-                  `Enter a new password for ${resetEmail}`
-                )}
+                {t('resetPassword.for_email', { email: resetEmail })}
               </Text>
             )}
 
@@ -353,41 +337,28 @@ export function PasswordResetCallback() {
               name="password"
               control={control}
               rules={{
-                required: t('passwordRequired', 'Password is required'),
+                required: t('passwordRequired'),
                 minLength: {
                   value: 8,
                   message: t('passwordMinLength', {
-                    defaultValue: 'Password must be at least 8 characters',
                     count: 8,
                   }),
                 },
                 validate: {
                   uppercase: (v) =>
-                    !v ||
-                    /[A-Z]/.test(v) ||
-                    t('passwordRequirement.uppercase', 'One uppercase letter'),
+                    !v || /[A-Z]/.test(v) || t('passwordRequirement.uppercase'),
                   lowercase: (v) =>
-                    !v ||
-                    /[a-z]/.test(v) ||
-                    t('passwordRequirement.lowercase', 'One lowercase letter'),
+                    !v || /[a-z]/.test(v) || t('passwordRequirement.lowercase'),
                   number: (v) =>
-                    !v ||
-                    /[0-9]/.test(v) ||
-                    t('passwordRequirement.number', 'One number'),
+                    !v || /[0-9]/.test(v) || t('passwordRequirement.number'),
                   special: (v) =>
                     !v ||
                     /[^a-zA-Z0-9]/.test(v) ||
-                    t('passwordRequirement.special', 'One special character'),
+                    t('passwordRequirement.special'),
                   breached: async (v) => {
                     if (!v || v.length < 8) return true;
                     const isBreached = await isBreachedPassword(v);
-                    return (
-                      !isBreached ||
-                      t(
-                        'errors.breached_password',
-                        'This password has appeared in a data breach.'
-                      )
-                    );
+                    return !isBreached || t('errors.breached_password');
                   },
                 },
               }}
@@ -395,11 +366,8 @@ export function PasswordResetCallback() {
                 <Stack gap="tight">
                   <PasswordInput
                     {...field}
-                    label={t('resetPassword.new_password', 'New password')}
-                    placeholder={t(
-                      'passwordPlaceholder',
-                      'Enter your password'
-                    )}
+                    label={t('resetPassword.new_password')}
+                    placeholder={t('passwordPlaceholder')}
                     autoComplete="new-password"
                     disabled={isSubmitting}
                     aria-invalid={!!errors.password}
@@ -428,23 +396,16 @@ export function PasswordResetCallback() {
               name="confirmPassword"
               control={control}
               rules={{
-                required: t(
-                  'confirmPasswordRequired',
-                  'Please confirm your password'
-                ),
+                required: t('confirmPasswordRequired'),
                 validate: (v) =>
-                  v === getValues('password') ||
-                  t('confirmPasswordMismatch', 'Passwords do not match'),
+                  v === getValues('password') || t('confirmPasswordMismatch'),
               }}
               render={({ field }) => (
                 <Stack gap="tight">
                   <PasswordInput
                     {...field}
-                    label={t('confirmPassword', 'Confirm password')}
-                    placeholder={t(
-                      'confirmPasswordPlaceholder',
-                      'Re-enter your password'
-                    )}
+                    label={t('confirmPassword')}
+                    placeholder={t('confirmPasswordPlaceholder')}
                     autoComplete="new-password"
                     disabled={isSubmitting}
                     aria-invalid={!!errors.confirmPassword}
@@ -485,9 +446,7 @@ export function PasswordResetCallback() {
               disabled={isSubmitting}
               fullWidth
             >
-              {isSubmitting
-                ? t('loading', 'Loading...')
-                : t('resetPassword.submit', 'Reset Password')}
+              {isSubmitting ? t('loading') : t('resetPassword.submit')}
             </Button>
           </Stack>
         </form>

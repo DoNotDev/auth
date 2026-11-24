@@ -286,10 +286,7 @@ export function useGoogleOneTap({
     checkGoogleServices: true,
     onError: (error) => {
       const handledError = handleError(error, {
-        userMessage: t(
-          'auth.fedcmNotSupported',
-          'Your browser does not support Google One Tap'
-        ),
+        userMessage: t('auth.fedcmNotSupported'),
         context: { operation: 'fedcm_detection' },
         severity: 'warning',
       });
@@ -318,10 +315,7 @@ export function useGoogleOneTap({
     isLoaded: () => !!window.google?.accounts?.id,
     onError: (error) => {
       const handledError = handleError(error, {
-        userMessage: t(
-          'auth.googleScriptLoadError',
-          'Failed to load Google Identity Services'
-        ),
+        userMessage: t('auth.googleScriptLoadError'),
         context: { operation: 'google_script_load' },
         severity: 'error',
       });
@@ -367,12 +361,7 @@ export function useGoogleOneTap({
   // Combine errors
   const combinedError = useMemo(() => {
     if (!fedcmSupported && fedcmReady) {
-      return new Error(
-        t(
-          'auth.fedcmRequired',
-          'Google One Tap requires a modern browser (Chrome 116+ or Edge 116+)'
-        )
-      );
+      return new Error(t('fedcmRequired'));
     }
     return scriptError || fedcmError || error;
   }, [scriptError, fedcmError, error, fedcmSupported, fedcmReady, t]);
@@ -396,10 +385,7 @@ export function useGoogleOneTap({
         });
       } catch (err) {
         const error = handleError(err, {
-          userMessage: t(
-            'auth.googleOneTapError',
-            'Google One Tap authentication failed'
-          ),
+          userMessage: t('auth.googleOneTapError'),
           context: {
             operation: 'google_one_tap_signin',
             credentialLength: credential?.length || 0,
@@ -538,10 +524,7 @@ export function useGoogleOneTap({
       }, 100);
     } catch (err) {
       const error = handleError(err, {
-        userMessage: t(
-          'auth.googleOneTapInitError',
-          'Failed to initialize Google One Tap'
-        ),
+        userMessage: t('auth.googleOneTapInitError'),
         context: {
           operation: 'google_one_tap_initialize',
           fedcmSupported,

@@ -122,16 +122,11 @@ function EmailPasswordForm({
   if (view === 'reset') {
     return (
       <AuthForm key="reset" flow={reset} className={className}>
-        <Text variant="muted">
-          {t(
-            'forgotPassword.intro',
-            'Enter your email and we will send you a reset link.'
-          )}
-        </Text>
+        <Text variant="muted">{t('forgotPassword.intro')}</Text>
         <AuthEmailField defaultValue={email} />
         <AuthFormAlerts />
         <AuthSubmitButton />
-        <Stack align="center">{link(t('back', 'Back'), 'signin')}</Stack>
+        <Stack align="center">{link(t('back'), 'signin')}</Stack>
       </AuthForm>
     );
   }
@@ -145,12 +140,7 @@ function EmailPasswordForm({
         <AuthConsentField tos={tos} privacy={privacy} />
         <AuthFormAlerts />
         <AuthSubmitButton />
-        <Stack align="center">
-          {link(
-            t('alreadyHaveAccount', 'Already have an account? Sign In'),
-            'signin'
-          )}
-        </Stack>
+        <Stack align="center">{link(t('alreadyHaveAccount'), 'signin')}</Stack>
       </AuthForm>
     );
   }
@@ -163,11 +153,11 @@ function EmailPasswordForm({
       <AuthFormAlerts />
       <AuthSubmitButton />
       <Stack direction="row" gap="tight" justify="center" align="center">
-        {link(t('forgotPassword', 'Forgot password?'), 'reset')}
+        {link(t('forgotPassword'), 'reset')}
         <Text as="span" variant="muted">
           |
         </Text>
-        {link(t('actions.sign_up_submit', 'Create account'), 'signup')}
+        {link(t('actions.sign_up_submit'), 'signup')}
       </Stack>
     </AuthForm>
   );

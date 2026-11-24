@@ -81,11 +81,8 @@ export function AuthForm({ flow, children, className }: AuthFormProps) {
     return (
       <Alert
         variant={ALERT_VARIANT.WARNING}
-        title={t('unavailable.title', 'Authentication Unavailable')}
-        description={t(
-          'unavailable.description',
-          'Sign-in is temporarily unavailable. Please try again later.'
-        )}
+        title={t('unavailable.title')}
+        description={t('unavailable.description')}
       />
     );
   }
@@ -146,8 +143,8 @@ export function AuthEmailField({
         name={AUTH_FIELD.EMAIL}
         type="email"
         autoComplete="username"
-        label={label ?? t('email', 'Email')}
-        placeholder={placeholder ?? t('emailPlaceholder', 'Enter your email')}
+        label={label ?? t('email')}
+        placeholder={placeholder ?? t('emailPlaceholder')}
         defaultValue={defaultValue}
         readOnly={flow.busy}
         aria-invalid={!!error}
@@ -187,7 +184,7 @@ export function AuthNameField({
       name={AUTH_FIELD.DISPLAY_NAME}
       type="text"
       autoComplete="name"
-      label={label ?? t('name', 'Name')}
+      label={label ?? t('name')}
       placeholder={placeholder}
       defaultValue={defaultValue}
       info={info}
@@ -201,8 +198,8 @@ export function AuthNameField({
 function usePasswordRevealLabels(): { show: string; hide: string } {
   const { t } = useTranslation('auth');
   return {
-    show: t('passwordToggle.show', { defaultValue: 'Show password' }),
-    hide: t('passwordToggle.hide', { defaultValue: 'Hide password' }),
+    show: t('passwordToggle.show'),
+    hide: t('passwordToggle.hide'),
   };
 }
 
@@ -232,10 +229,8 @@ export function AuthPasswordField({ label, placeholder }: AuthTextFieldProps) {
         name={AUTH_FIELD.PASSWORD}
         autoComplete={isNew ? 'new-password' : 'current-password'}
         revealAriaLabel={revealLabels}
-        label={label ?? t('password', 'Password')}
-        placeholder={
-          placeholder ?? t('passwordPlaceholder', 'Enter your password')
-        }
+        label={label ?? t('password')}
+        placeholder={placeholder ?? t('passwordPlaceholder')}
         onInput={
           isNew
             ? (e) => {
@@ -287,11 +282,8 @@ export function AuthConfirmPasswordField({
         name={AUTH_FIELD.CONFIRM_PASSWORD}
         autoComplete="new-password"
         revealAriaLabel={revealLabels}
-        label={label ?? t('confirmPassword', 'Confirm Password')}
-        placeholder={
-          placeholder ??
-          t('confirmPasswordPlaceholder', 'Re-enter your password')
-        }
+        label={label ?? t('confirmPassword')}
+        placeholder={placeholder ?? t('confirmPasswordPlaceholder')}
         readOnly={flow.busy}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
@@ -333,7 +325,7 @@ export function AuthRememberMeField({
     <Checkbox
       name={AUTH_FIELD.REMEMBER_ME}
       defaultChecked={defaultChecked}
-      label={label ?? t('rememberMe', 'Remember me')}
+      label={label ?? t('rememberMe')}
     />
   );
 }
@@ -421,18 +413,15 @@ export function AuthConsentField({ tos, privacy }: AuthConsentFieldProps) {
         />
         <Label htmlFor={id}>
           <Text as="span" level="caption">
-            {t('terms.accept_prefix', 'I accept the')}{' '}
+            {t('terms.accept_prefix')}{' '}
             {tosDoc !== false && (
-              <LegalLink label={t('terms.tos', 'Terms of Service')} document={tosDoc} />
+              <LegalLink label={t('terms.tos')} document={tosDoc} />
             )}
             {tosDoc !== false && privacyDoc !== false && (
-              <> {t('terms.and', 'and')} </>
+              <> {t('terms.and')} </>
             )}
             {privacyDoc !== false && (
-              <LegalLink
-                label={t('terms.privacy', 'Privacy Policy')}
-                document={privacyDoc}
-              />
+              <LegalLink label={t('terms.privacy')} document={privacyDoc} />
             )}
           </Text>
         </Label>
@@ -462,7 +451,7 @@ export function AuthFormAlerts() {
           variant={BUTTON_VARIANT.LINK}
           onClick={() => void flow.resendVerification(unconfirmed)}
         >
-          {t('signup.resend_verification', 'Resend verification email')}
+          {t('signup.resend_verification')}
         </Button>
       )}
     </Stack>
@@ -490,10 +479,10 @@ export function AuthSubmitButton({ children }: AuthSubmitButtonProps) {
   const flow = useFlow();
   const standard =
     flow.mode === 'signup'
-      ? t('actions.sign_up_submit', 'Create account')
+      ? t('actions.sign_up_submit')
       : flow.mode === 'reset'
-        ? t('forgotPassword.submit', 'Send reset link')
-        : t('actions.sign_in_submit', 'Sign In');
+        ? t('forgotPassword.submit')
+        : t('actions.sign_in_submit');
   return (
     <Stack gap="tight">
       <AuthCaptcha />
@@ -546,13 +535,10 @@ export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
         length={confirmation.length}
         mask={false}
         autoFocus
-        label={
-          label ?? t('codeConfirmation.label', { defaultValue: 'Confirmation code' })
-        }
+        label={label ?? t('codeConfirmation.label')}
         disabled={confirmation.busy || !confirmation.ready}
         digitAriaLabel={(index, length) =>
           t('codeConfirmation.digit', {
-            defaultValue: `Digit ${index} of ${length}`,
             index,
             length,
           })
@@ -563,7 +549,7 @@ export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
       <FieldError id={errorId} message={error ?? undefined} />
       {resent && (
         <Text as="span" level="caption" variant="success" role="status">
-          {t('codeConfirmation.sent', { defaultValue: 'A new code has been sent.' })}
+          {t('codeConfirmation.sent')}
         </Text>
       )}
       <AuthCaptcha />
@@ -579,10 +565,9 @@ export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
       >
         {resendIn > 0
           ? t('codeConfirmation.resend_in', {
-              defaultValue: `Resend code in ${resendIn} s`,
               seconds: resendIn,
             })
-          : t('codeConfirmation.resend', { defaultValue: 'Resend code' })}
+          : t('codeConfirmation.resend')}
       </Button>
     </Stack>
   );
@@ -628,14 +613,13 @@ export function AuthCodeStep({
     <Stack>
       <Text variant="muted">
         {t('codeConfirmation.intro', {
-          defaultValue: `Enter the code sent to ${email}`,
           email,
         })}
       </Text>
       <AuthCodeField confirmation={confirmation} />
       {onChangeEmail && (
         <Button type="button" variant={BUTTON_VARIANT.LINK} onClick={onChangeEmail}>
-          {t('codeConfirmation.change_email', { defaultValue: 'Change address' })}
+          {t('codeConfirmation.change_email')}
         </Button>
       )}
     </Stack>

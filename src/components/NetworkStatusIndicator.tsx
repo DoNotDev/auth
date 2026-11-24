@@ -44,27 +44,17 @@ function NetworkStatusIndicator({
       className={className}
       role="status"
       aria-live={online ? 'polite' : 'assertive'}
-      title={
-        online
-          ? t('networkStatus.online', { defaultValue: 'You are online' })
-          : t('networkStatus.offline', { defaultValue: 'You are offline' })
-      }
+      title={online ? t('networkStatus.online') : t('networkStatus.offline')}
       description={
         online ? (
           <span>
             {t('networkStatus.connectedVia', {
               connectionType: connectionType || 'unknown',
-              defaultValue: `Connected via ${connectionType || 'unknown'}`,
             })}
           </span>
         ) : (
           <Stack>
-            <p>
-              {t('networkStatus.offlineMessage', {
-                defaultValue:
-                  'Authentication requires an internet connection. Please check your network settings.',
-              })}
-            </p>
+            <p>{t('networkStatus.offlineMessage')}</p>
             <Button
               variant={BUTTON_VARIANT.GHOST}
               onClick={() => {
@@ -78,7 +68,7 @@ function NetworkStatusIndicator({
                 fontWeight: 500,
               }}
             >
-              {t('networkStatus.checkAgain', { defaultValue: 'Check again' })}
+              {t('networkStatus.checkAgain')}
             </Button>
           </Stack>
         )

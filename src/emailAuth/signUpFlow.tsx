@@ -170,7 +170,6 @@ function StepHeader({
     <Stack gap="tight">
       <Text as="p" level="caption" variant="muted">
         {t('signUpFlow.progress', {
-          defaultValue: `Step ${position} of ${total}`,
           current: position,
           total,
         })}
@@ -206,7 +205,7 @@ function CodeStep({
         variant={BUTTON_VARIANT.LINK}
         onClick={onChangeEmail}
       >
-        {t('codeConfirmation.change_email', { defaultValue: 'Change address' })}
+        {t('codeConfirmation.change_email')}
       </Button>
     </Stack>
   );
@@ -457,9 +456,7 @@ export function EmailSignUpFlow({
               <StepHeader
                 titleId={titleId}
                 titleRef={titleRef}
-                title={t('signUpFlow.account_title', {
-                  defaultValue: 'Create your account',
-                })}
+                title={t('signUpFlow.account_title')}
                 position={1}
                 total={total}
               />
@@ -485,11 +482,8 @@ export function EmailSignUpFlow({
             <StepHeader
               titleId={titleId}
               titleRef={titleRef}
-              title={t('signUpFlow.code_title', {
-                defaultValue: 'Check your email',
-              })}
+              title={t('signUpFlow.code_title')}
               description={t('codeConfirmation.intro', {
-                defaultValue: `Enter the code sent to ${email}`,
                 email,
               })}
               position={2}

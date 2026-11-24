@@ -21,6 +21,7 @@ import {
   Stack,
 } from '@donotdev/components';
 import {
+  AUTH_PARTNERS,
   useTranslation,
   safeSessionStorage,
   handleError as handleErrorUtil,
@@ -65,6 +66,16 @@ const AccountLinkingContent: ComponentType<AccountLinkingProps> = ({
     return null;
   }
 
+  const existingName = existingProvider
+    ? AUTH_PARTNERS[existingProvider].name
+    : '';
+  const newName = newProvider ? AUTH_PARTNERS[newProvider].name : '';
+  const linkingMessage = t('dndev:accountLinking.message', {
+    email,
+    methods: existingName,
+    newProvider: newName,
+  });
+
   // Handle different provider types
   if (existingProvider === 'password' || existingProvider === 'emailLink') {
     // Email authentication - show appropriate form
@@ -98,15 +109,10 @@ const AccountLinkingContent: ComponentType<AccountLinkingProps> = ({
           variant={ALERT_VARIANT.WARNING}
           role="alert"
           aria-live="polite"
-          title={t('accountLinking.title', 'Account Linking Required')}
+          title={t('dndev:accountLinking.title')}
           description={
             <Stack>
-              <p>
-                {t(
-                  'accountLinking.message',
-                  `An account with email ${email} already exists with ${existingProvider === 'password' ? 'email/password' : 'email link'}. To link your ${newProvider} account, please sign in with your ${existingProvider === 'password' ? 'email and password' : 'email link'} first.`
-                )}
-              </p>
+              <p>{linkingMessage}</p>
 
               {/* Show appropriate form based on provider type */}
               {existingProvider === 'password' ? (
@@ -128,7 +134,7 @@ const AccountLinkingContent: ComponentType<AccountLinkingProps> = ({
 
               <Stack direction="row" justify="end">
                 <Button onClick={handleDismiss} variant={BUTTON_VARIANT.GHOST}>
-                  {t('accountLinking.dismiss', 'Dismiss')}
+                  {t('dndev:accountLinking.dismiss')}
                 </Button>
               </Stack>
             </Stack>
@@ -155,27 +161,19 @@ const AccountLinkingContent: ComponentType<AccountLinkingProps> = ({
           variant={ALERT_VARIANT.WARNING}
           role="alert"
           aria-live="polite"
-          title={t('accountLinking.title', 'Account Linking Required')}
+          title={t('dndev:accountLinking.title')}
           description={
             <Stack>
-              <p>
-                {t(
-                  'accountLinking.message',
-                  `An account with email ${email} already exists with ${existingProvider}. To link your ${newProvider} account, please sign in with ${existingProvider} first.`
-                )}
-              </p>
+              <p>{linkingMessage}</p>
               <Stack direction="row">
                 <Button
                   onClick={handleSignInWithExistingProvider}
                   variant={BUTTON_VARIANT.PRIMARY}
                 >
-                  {t(
-                    'accountLinking.signInWith',
-                    `Sign in with ${existingProvider}`
-                  )}
+                  {t('dndev:buttons.signIn', { provider: existingName })}
                 </Button>
                 <Button onClick={handleDismiss} variant={BUTTON_VARIANT.GHOST}>
-                  {t('accountLinking.dismiss', 'Dismiss')}
+                  {t('dndev:accountLinking.dismiss')}
                 </Button>
               </Stack>
             </Stack>

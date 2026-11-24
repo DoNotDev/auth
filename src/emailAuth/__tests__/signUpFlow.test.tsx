@@ -38,15 +38,12 @@ vi.mock('@donotdev/components', async (importOriginal) => {
 
 vi.mock('@donotdev/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@donotdev/core')>();
+  const { localeT } = await import('./localeT');
   return {
     ...actual,
     useAppConfig: () => undefined,
-    useTranslation: () => ({
-      t: (
-        key: string,
-        options?: string | ({ defaultValue?: string } & Record<string, unknown>)
-      ) =>
-        (typeof options === 'string' ? options : options?.defaultValue) ?? key,
+    useTranslation: (namespace?: string | string[]) => ({
+      t: localeT(namespace),
       i18n: { language: 'fr' },
       language: 'fr',
     }),
