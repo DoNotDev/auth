@@ -91,7 +91,10 @@ const signUp = async (props: EmailSignUpOptions, password = 'Str0ng!pass') => {
   await submitSignUp();
   // The breached-password check (SHA-1 + fetch) runs before the provider call.
   await waitFor(() => {
-    if (api.createUserWithEmail.mock.calls.length === 0 && !screen.queryByRole('alert')) {
+    // Done: the provider was called, or a form error (alert) / field error (aria-invalid) shows
+    const failed =
+      screen.queryByRole('alert') || document.querySelector('[aria-invalid="true"]');
+    if (api.createUserWithEmail.mock.calls.length === 0 && !failed) {
       throw new Error('sign-up still running');
     }
   });

@@ -32,6 +32,8 @@ import {
   BUTTON_VARIANT,
   Checkbox,
   Dialog,
+  FieldMessage,
+  fieldMessageAria,
   Input,
   Label,
   PasswordInput,
@@ -99,16 +101,6 @@ export function AuthForm({ flow, children, className }: AuthFormProps) {
   );
 }
 
-/** Validation message under a field, wired to it by id. */
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <Text as="span" level="caption" variant="destructive" id={id} role="alert">
-      {message}
-    </Text>
-  );
-}
-
 /** Props shared by the text fields. */
 export interface AuthTextFieldProps {
   /** Label (default: translated "Email" / "Password") */
@@ -147,12 +139,11 @@ export function AuthEmailField({
         placeholder={placeholder ?? t('emailPlaceholder')}
         defaultValue={defaultValue}
         readOnly={flow.busy}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
+        {...fieldMessageAria({ id: errorId, error })}
         data-variant={error ? 'destructive' : undefined}
         className="dndev-w-full"
       />
-      <FieldError id={errorId} message={error} />
+      <FieldMessage id={errorId} error={error} />
     </Stack>
   );
 }
@@ -241,12 +232,11 @@ export function AuthPasswordField({ label, placeholder }: AuthTextFieldProps) {
             : undefined
         }
         readOnly={flow.busy}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
+        {...fieldMessageAria({ id: errorId, error })}
         data-variant={error ? 'destructive' : undefined}
         className="dndev-w-full"
       />
-      <FieldError id={errorId} message={error} />
+      <FieldMessage id={errorId} error={error} />
       {isNew && (
         <PasswordStrengthIndicator
           password={typed}
@@ -285,12 +275,11 @@ export function AuthConfirmPasswordField({
         label={label ?? t('confirmPassword')}
         placeholder={placeholder ?? t('confirmPasswordPlaceholder')}
         readOnly={flow.busy}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
+        {...fieldMessageAria({ id: errorId, error })}
         data-variant={error ? 'destructive' : undefined}
         className="dndev-w-full"
       />
-      <FieldError id={errorId} message={error} />
+      <FieldMessage id={errorId} error={error} />
     </Stack>
   );
 }
@@ -408,8 +397,7 @@ export function AuthConsentField({ tos, privacy }: AuthConsentFieldProps) {
         <Checkbox
           id={id}
           name={AUTH_FIELD.CONSENT}
-          aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
+          {...fieldMessageAria({ id: errorId, error })}
         />
         <Label htmlFor={id}>
           <Text as="span" level="caption">
@@ -426,7 +414,7 @@ export function AuthConsentField({ tos, privacy }: AuthConsentFieldProps) {
           </Text>
         </Label>
       </Stack>
-      <FieldError id={errorId} message={error} />
+      <FieldMessage id={errorId} error={error} />
     </Stack>
   );
 }
@@ -543,10 +531,9 @@ export function AuthCodeField({ confirmation, label }: AuthCodeFieldProps) {
             length,
           })
         }
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
+        {...fieldMessageAria({ id: errorId, error: error ?? undefined })}
       />
-      <FieldError id={errorId} message={error ?? undefined} />
+      <FieldMessage id={errorId} error={error ?? undefined} />
       {resent && (
         <Text as="span" level="caption" variant="success" role="status">
           {t('codeConfirmation.sent')}
@@ -618,7 +605,11 @@ export function AuthCodeStep({
       </Text>
       <AuthCodeField confirmation={confirmation} />
       {onChangeEmail && (
-        <Button type="button" variant={BUTTON_VARIANT.LINK} onClick={onChangeEmail}>
+        <Button
+          type="button"
+          variant={BUTTON_VARIANT.LINK}
+          onClick={onChangeEmail}
+        >
           {t('codeConfirmation.change_email')}
         </Button>
       )}

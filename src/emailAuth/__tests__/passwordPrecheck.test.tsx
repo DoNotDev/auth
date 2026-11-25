@@ -134,7 +134,12 @@ describe('breached-password pre-check', () => {
     render(<SignUp />);
     typePassword(STRONG);
     await advance(BREACH_PRECHECK_DEBOUNCE_MS);
-    expect(screen.getByRole('alert').textContent).toMatch(BREACHED_MESSAGE);
+    const password = screen.getByLabelText(/^Password$/);
+    expect(password.getAttribute('aria-invalid')).toBe('true');
+    const message = document.getElementById(
+      password.getAttribute('aria-describedby')!
+    );
+    expect(message?.textContent).toMatch(BREACHED_MESSAGE);
     expect(api.createUserWithEmail).not.toHaveBeenCalled();
   });
 
@@ -144,7 +149,7 @@ describe('breached-password pre-check', () => {
     typePassword(STRONG);
     await advance(BREACH_PRECHECK_DEBOUNCE_MS);
     typePassword('short');
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(BREACHED_MESSAGE)).toBeNull();
   });
 
   it('ignores the answer for a password that is no longer the current one', async () => {
@@ -162,7 +167,7 @@ describe('breached-password pre-check', () => {
     typePassword(STRONG_2);
     await advance(BREACH_PRECHECK_DEBOUNCE_MS);
     await act(async () => answerFirst(true));
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(BREACHED_MESSAGE)).toBeNull();
   });
 
   it('submit reuses the cached result for the same password', async () => {

@@ -20,9 +20,10 @@ import {
   Button,
   BUTTON_VARIANT,
   Dialog,
+  FieldMessage,
+  fieldMessageAria,
   PasswordInput,
   Stack,
-  Text,
 } from '@donotdev/components';
 import { useTranslation } from '@donotdev/core';
 
@@ -141,24 +142,17 @@ function PasswordUpdateDialog({ updatePassword }: PasswordUpdateDialogProps) {
                 label={t('resetPassword.new_password')}
                 placeholder={t('passwordUpdate.placeholder')}
                 disabled={isSubmitting}
-                aria-invalid={!!errors.password}
-                aria-describedby={
-                  errors.password ? 'password-update-error' : undefined
-                }
+                {...fieldMessageAria({
+                  id: 'password-update-error',
+                  error: errors.password?.message,
+                })}
                 className="dndev-w-full"
                 data-variant={errors.password ? 'destructive' : undefined}
               />
-              {errors.password && (
-                <Text
-                  as="span"
-                  level="caption"
-                  variant="destructive"
-                  id="password-update-error"
-                  role="alert"
-                >
-                  {errors.password.message}
-                </Text>
-              )}
+              <FieldMessage
+                id="password-update-error"
+                error={errors.password?.message}
+              />
             </Stack>
           )}
         />

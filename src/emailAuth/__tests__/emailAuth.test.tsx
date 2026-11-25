@@ -180,6 +180,24 @@ describe('EmailPasswordForm on the email auth pieces', () => {
     expect(api.createUserWithEmail).not.toHaveBeenCalled();
   });
 
+  // The message slot (FieldMessage) is mounted before any error: a hidden, empty live
+  // region that the error is written into on submit, the field wired to it.
+  it('writes the error into the field message slot mounted before it', async () => {
+    render(<EmailPasswordForm mode="signup" tos={false} privacy={false} />);
+    const email = screen.getByLabelText(/^Email$/);
+    const slot = () => email.closest('fieldset')!.nextElementSibling as HTMLElement;
+    const before = slot();
+    expect(before.dataset.state).toBe('empty');
+    expect(before.querySelector('[aria-live="polite"]')).not.toBeNull();
+    expect(email.hasAttribute('aria-describedby')).toBe(false);
+    await submit(/^Create account$/);
+    expect(slot()).toBe(before);
+    expect(before.dataset.state).toBe('error');
+    expect(before.textContent).not.toBe('');
+    expect(email.getAttribute('aria-describedby')).toBe(before.id);
+    expect(email.getAttribute('aria-invalid')).toBe('true');
+  });
+
   it('requests a password reset from the typed email, closes, and toasts', async () => {
     api.sendPasswordResetEmail.mockRejectedValue(new Error('User not found'));
     const onSuccess = vi.fn();

@@ -28,6 +28,8 @@ import {
   Button,
   BUTTON_VARIANT,
   Dialog,
+  FieldMessage,
+  fieldMessageAria,
   PasswordInput,
   Spinner,
   Stack,
@@ -370,24 +372,17 @@ export function PasswordResetCallback() {
                     placeholder={t('passwordPlaceholder')}
                     autoComplete="new-password"
                     disabled={isSubmitting}
-                    aria-invalid={!!errors.password}
-                    aria-describedby={
-                      errors.password ? 'reset-password-error' : undefined
-                    }
+                    {...fieldMessageAria({
+                      id: 'reset-password-error',
+                      error: errors.password?.message,
+                    })}
                     className="dndev-w-full"
                     data-variant={errors.password ? 'destructive' : undefined}
                   />
-                  {errors.password && (
-                    <Text
-                      as="span"
-                      level="caption"
-                      variant="destructive"
-                      id="reset-password-error"
-                      role="alert"
-                    >
-                      {errors.password.message}
-                    </Text>
-                  )}
+                  <FieldMessage
+                    id="reset-password-error"
+                    error={errors.password?.message}
+                  />
                 </Stack>
               )}
             />
@@ -408,26 +403,19 @@ export function PasswordResetCallback() {
                     placeholder={t('confirmPasswordPlaceholder')}
                     autoComplete="new-password"
                     disabled={isSubmitting}
-                    aria-invalid={!!errors.confirmPassword}
-                    aria-describedby={
-                      errors.confirmPassword ? 'reset-confirm-error' : undefined
-                    }
+                    {...fieldMessageAria({
+                      id: 'reset-confirm-error',
+                      error: errors.confirmPassword?.message,
+                    })}
                     className="dndev-w-full"
                     data-variant={
                       errors.confirmPassword ? 'destructive' : undefined
                     }
                   />
-                  {errors.confirmPassword && (
-                    <Text
-                      as="span"
-                      level="caption"
-                      variant="destructive"
-                      id="reset-confirm-error"
-                      role="alert"
-                    >
-                      {errors.confirmPassword.message}
-                    </Text>
-                  )}
+                  <FieldMessage
+                    id="reset-confirm-error"
+                    error={errors.confirmPassword?.message}
+                  />
                 </Stack>
               )}
             />
