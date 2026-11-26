@@ -85,6 +85,80 @@ describe('useAuth reactivity', () => {
     expect(screen.getByText('gate')).toBeTruthy();
   });
 
+  it('skips a same-user re-emit with equal data: references kept, no extra render', async () => {
+    const mk = () =>
+      ({ id: 'u2', email: 'a@b.c', role: 'user', customClaims: { tier: 'free' } }) as AuthUser;
+    let userRenders = 0;
+    let canRenders = 0;
+    function UserProbe() {
+      useAuth('user');
+      userRenders++;
+      return null;
+    }
+    function CanProbe() {
+      useAuth('can');
+      canRenders++;
+      return null;
+    }
+    render(
+      <>
+        <Initialiser />
+        <UserProbe />
+        <CanProbe />
+      </>
+    );
+    await flush();
+
+    act(() => {
+      provider.emitSignIn(mk());
+    });
+    const s1 = useAuthStore.getState();
+    const [u, sub, prof] = [s1.user, s1.userSubscription, s1.userProfile];
+    const [ur, cr] = [userRenders, canRenders];
+
+    act(() => {
+      provider.emitSignIn(mk());
+    });
+    const s2 = useAuthStore.getState();
+    expect(s2.user).toBe(u);
+    expect(s2.userSubscription).toBe(sub);
+    expect(s2.userProfile).toBe(prof);
+    expect(userRenders).toBe(ur);
+    expect(canRenders).toBe(cr);
+  });
+
+  it('updates the store and re-renders when the same user re-emits with changed claims', async () => {
+    const mk = (tier: string) =>
+      ({ id: 'u3', email: 'a@b.c', role: 'user', customClaims: { tier } }) as AuthUser;
+    const seen: unknown[] = [];
+    function UserProbe() {
+      seen.push(useAuth('user'));
+      return null;
+    }
+    render(
+      <>
+        <Initialiser />
+        <UserProbe />
+      </>
+    );
+    await flush();
+
+    act(() => {
+      provider.emitSignIn(mk('free'));
+    });
+    const before = useAuthStore.getState().user;
+    const renders = seen.length;
+
+    act(() => {
+      provider.emitSignIn(mk('pro'));
+    });
+    const after = useAuthStore.getState().user;
+    expect(after).not.toBe(before);
+    expect(after?.customClaims).toEqual({ tier: 'pro' });
+    expect(seen.length).toBeGreaterThan(renders);
+    expect((seen.at(-1) as AuthUser).customClaims).toEqual({ tier: 'pro' });
+  });
+
   it('returns the same can object while the auth state is unchanged', async () => {
     const seen: unknown[] = [];
     function Probe() {

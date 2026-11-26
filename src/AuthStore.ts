@@ -45,6 +45,32 @@ const initialState: AuthState = {
   status: FEATURE_STATUS.INITIALIZING,
 };
 
+/**
+ * Strict value equality for plain JSON-like data (primitives, arrays, plain objects).
+ * Key order is irrelevant; an `undefined`-valued key differs from a missing key.
+ */
+function isEqualData(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => isEqualData(v, b[i]));
+  }
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  return (
+    ka.length === kb.length &&
+    ka.every(
+      (k) =>
+        Object.prototype.hasOwnProperty.call(b, k) &&
+        isEqualData(
+          (a as Record<string, unknown>)[k],
+          (b as Record<string, unknown>)[k]
+        )
+    )
+  );
+}
+
 export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
   name: 'auth-store',
 
@@ -113,19 +139,36 @@ export const useAuthStore = createDoNotDevStore<AuthState & AuthActions>({
      * Set authenticated state with all user data
      * Called by AuthService when user signs in. A different user than the one the
      * query cache was filled under resets the cache first (syncQueryCacheIdentity).
+     *
+     * A same-user update with unchanged data is a no-op: the stored `user`,
+     * `userSubscription` and `userProfile` keep their references and subscribers are
+     * not notified. Providers re-emit the session with fresh equal objects (e.g.
+     * Supabase SIGNED_IN on every tab return) and would otherwise re-render every
+     * `useAuth('user')` / `useAuth('can')` consumer. Changed data (e.g. new claims
+     * after a token refresh) still updates the store.
      */
     setAuthenticated: (user, subscription, profile) => {
       syncQueryCacheIdentity(user.id);
-      set({
-        user,
+      const prev = get();
+      const next = {
+        user: isEqualData(prev.user, user) ? prev.user : user,
         authenticated: true,
         userId: user.id,
         loading: false,
         error: null,
         status: FEATURE_STATUS.READY,
-        userSubscription: subscription,
-        userProfile: profile,
-      });
+        userSubscription: isEqualData(prev.userSubscription, subscription)
+          ? prev.userSubscription
+          : subscription,
+        userProfile: isEqualData(prev.userProfile, profile)
+          ? prev.userProfile
+          : profile,
+      };
+      const unchanged = (Object.keys(next) as (keyof typeof next)[]).every((k) =>
+        Object.is(prev[k], next[k])
+      );
+      if (unchanged) return;
+      set(next);
     },
 
     /**
